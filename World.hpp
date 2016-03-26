@@ -1,11 +1,14 @@
 #pragma once
 
+#include "ResourceHolder.hpp"
+#include "ResourceIdentifiers.hpp"
 #include "TileMap.hpp"
+#include "SceneNode.hpp"
+#include "Player.hpp"
 
 #include <SFML/System/NonCopyable.hpp>
-#include <SFML/System/Time.hpp>
 #include <SFML/Graphics/View.hpp>
-#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Texture.hpp>
 
 
 namespace sf
@@ -23,10 +26,14 @@ public:
 
 
 private:
+	void loadTextures();
+	void buildScene();
+
+
+private:
 	sf::RenderTarget& mWindow;
 	sf::View mView;
 	TileMap mTileMap;
-	// temp vars
-	sf::Texture texture;
-	sf::Sprite player;
+	TextureHolder mTextures;
+	SceneNode mSceneGraph;
 };
