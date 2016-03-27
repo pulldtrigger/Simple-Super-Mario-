@@ -5,6 +5,7 @@
 #include "TileMap.hpp"
 #include "SceneNode.hpp"
 #include "Player.hpp"
+#include "CommandQueue.hpp"
 
 #include <SFML/System/NonCopyable.hpp>
 #include <SFML/Graphics/View.hpp>
@@ -29,6 +30,9 @@ private:
 	void loadTextures();
 	void buildScene();
 
+	void destroyEntitiesOutsideView();
+	sf::FloatRect getViewBounds() const;
+
 
 private:
 	sf::RenderTarget& mWindow;
@@ -36,4 +40,5 @@ private:
 	TileMap mTileMap;
 	TextureHolder mTextures;
 	SceneNode mSceneGraph;
+	CommandQueue mCommandQueue;
 };

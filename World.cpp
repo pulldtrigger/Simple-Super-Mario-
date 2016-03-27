@@ -32,8 +32,13 @@ void World::update(sf::Time dt)
 	{
 		mView.move(-100.f * dt.asSeconds(), 0.f);
 	}
+	destroyEntitiesOutsideView();
 
-	mSceneGraph.update(dt);
+	while (!mCommandQueue.isEmpty())
+		mSceneGraph.onCommand(mCommandQueue.pop());
+
+	mSceneGraph.removeWrecks();
+	mSceneGraph.update(dt, mCommandQueue);
 }
 
 void World::draw()
@@ -43,11 +48,9 @@ void World::draw()
 	mWindow.draw(mSceneGraph);
 
 #ifdef Debug
-	auto center = mView.getCenter();
-	auto size = mView.getSize();
-	sf::FloatRect screenBounds(center.x - size.x / 2.f, center.y - size.y / 2.f, size.x, size.y);
-	sf::RectangleShape debugShape({ screenBounds.width, screenBounds.height });
-	debugShape.setPosition(screenBounds.left, screenBounds.top);
+	sf::FloatRect viewBounds(mView.getCenter() - mView.getSize() / 2.f, mView.getSize());
+	sf::RectangleShape debugShape({ viewBounds.width, viewBounds.height });
+	debugShape.setPosition(viewBounds.left, viewBounds.top);
 	debugShape.setFillColor(sf::Color::Transparent);
 	debugShape.setOutlineColor(sf::Color::Cyan);
 	debugShape.setOutlineThickness(-3.f);
@@ -80,4 +83,22 @@ void World::buildScene()
 			mSceneGraph.attachChild(std::move(player));
 		}
 	}
+}
+
+sf::FloatRect World::getViewBounds() const
+{
+	return{ mView.getCenter() - mView.getSize() / 2.f, mView.getSize() };
+}
+
+void World::destroyEntitiesOutsideView()
+{
+	Command command;
+	command.category = Category::Player;
+	command.action = derivedAction<Entity>([this](auto& entity)
+	{
+		if (!getViewBounds().intersects(entity.getBoundingRect()))
+			entity.remove();
+	});
+
+	mCommandQueue.push(command);
 }
