@@ -129,3 +129,26 @@ bool SceneNode::isMarkedForRemoval() const
 	// By default, remove node if entity is destroyed
 	return isDestroyed();
 }
+
+unsigned int SceneNode::getFootSenseCount() const
+{
+	return 0;
+}
+
+void SceneNode::setFootSenseCount(unsigned int count)
+{
+}
+
+sf::FloatRect SceneNode::getFootSensorBoundingRect() const
+{
+	return{};
+}
+
+Type SceneNode::getType() const
+{
+	return Type::None;
+}
+
+void SceneNode::resolve(const sf::Vector3f& manifold, SceneNode* otherType)
+{
+}

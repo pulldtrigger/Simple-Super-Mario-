@@ -7,9 +7,7 @@
 #include "Player.hpp"
 #include "CommandQueue.hpp"
 
-#include <SFML/System/NonCopyable.hpp>
 #include <SFML/Graphics/View.hpp>
-#include <SFML/Graphics/Texture.hpp>
 
 
 namespace sf
@@ -33,6 +31,9 @@ private:
 	void destroyEntitiesOutsideView();
 	sf::FloatRect getViewBounds() const;
 
+	void checkForCollision();
+	void handleCollision();
+
 
 private:
 	sf::RenderTarget& mWindow;
@@ -41,4 +42,6 @@ private:
 	TextureHolder mTextures;
 	SceneNode mSceneGraph;
 	CommandQueue mCommandQueue;
+	std::vector<SceneNode*> mBodies;
+	Player* mPlayer;
 };

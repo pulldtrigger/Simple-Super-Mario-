@@ -10,6 +10,7 @@ public:
 
 	void setVelocity(float vx, float vy);
 	void setVelocity(sf::Vector2f velocity);
+	sf::Vector2f getVelocity() const;
 
 	void destroy();
 	virtual void remove();
@@ -22,8 +23,7 @@ protected:
 
 	void accelerate(sf::Vector2f velocity);
 
-
 private:
-	sf::Vector2f			mVelocity;
-	int						mHitpoints;
+	sf::Vector2f mVelocity;
+	int mHitpoints;
 };

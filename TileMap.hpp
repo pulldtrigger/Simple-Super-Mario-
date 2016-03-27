@@ -3,27 +3,29 @@
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Transformable.hpp>
+#include <SFML/System/NonCopyable.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 
 #include <string>
 #include <vector>
 
 
-class TileMap final : public sf::Drawable, public sf::Transformable
+class TileMap final : public sf::Drawable, public sf::Transformable, private sf::NonCopyable
 {
 	struct Object
 	{
-		Object(	unsigned id,
-				const std::string& name,
-				const sf::Vector2f& position,
-				const sf::Vector2f& size)
-			: id(id)
-			, name(name)
+		explicit Object(const std::string& name,
+			const std::string& type,
+			const sf::Vector2f& position,
+			const sf::Vector2f& size)
+			: name(name)
+			, type(type)
 			, position(position)
 			, size(size)
 		{}
-		unsigned id;
+
 		std::string name;
+		std::string type;
 		sf::Vector2f position;
 		sf::Vector2f size;
 	};

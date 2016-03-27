@@ -1,17 +1,18 @@
 #pragma once
 
 #include "Category.hpp"
+#include "Type.hpp"
 
 #include <SFML/Graphics/Transformable.hpp>
 #include <SFML/System/NonCopyable.hpp>
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/System/Time.hpp>
+#include <SFML/System/Vector3.hpp>
 
 #include <utility>
 #include <vector>
 #include <memory>
 #include <set>
-
 
 struct Command;
 class CommandQueue;
@@ -21,6 +22,7 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
 {
 public:
 	using Ptr = std::unique_ptr<SceneNode>;
+	using Pair = std::pair<SceneNode*, SceneNode*>;
 
 
 public:
@@ -40,6 +42,12 @@ public:
 	void removeWrecks();
 	virtual sf::FloatRect getBoundingRect() const;
 	virtual bool isDestroyed() const;
+
+	virtual unsigned int getFootSenseCount() const; // it should be boolean value
+	virtual void setFootSenseCount(unsigned int count);
+	virtual sf::FloatRect getFootSensorBoundingRect() const;
+	virtual Type getType() const;
+	virtual void resolve(const sf::Vector3f& manifold, SceneNode* otherType);
 
 
 private:

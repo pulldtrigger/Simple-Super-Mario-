@@ -89,8 +89,8 @@ bool TileMap::loadFromFile(const std::string& filename)
 	{
 		for (auto objectNode = node.child("object"); objectNode; objectNode = objectNode.next_sibling("object"))
 		{
-			auto id = objectNode.attribute("id").as_uint();
 			std::string name = objectNode.attribute("name").as_string();
+			std::string type = objectNode.attribute("type").as_string();
 
 			sf::Vector2f position;
 			position.x = objectNode.attribute("x").as_float();
@@ -100,7 +100,7 @@ bool TileMap::loadFromFile(const std::string& filename)
 			size.x = objectNode.attribute("width").as_float();
 			size.y = objectNode.attribute("height").as_float();
 
-			mObjects.emplace_back(id, name, position, size);
+			mObjects.emplace_back(name, type, position, size);
 		}
 	}
 	return true;

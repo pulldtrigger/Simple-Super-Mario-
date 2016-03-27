@@ -1,4 +1,5 @@
 #include "World.hpp"
+#include "Solid.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -7,6 +8,32 @@
 #include <iostream>
 
 //#define Debug
+namespace
+{
+	//contains the normal in the first two components and penetration in z
+	sf::Vector3f getManifold(SceneNode::Pair& cp)
+	{
+		sf::Vector2f collisionNormal = cp.second->getWorldPosition() - cp.first->getWorldPosition();
+		sf::FloatRect overlap;
+
+		cp.first->getBoundingRect().intersects(cp.second->getBoundingRect(), overlap);
+
+		sf::Vector3f manifold;
+		if (overlap.width < overlap.height)
+		{
+			manifold.x = (collisionNormal.x < 0) ? -1.f : 1.f;
+			manifold.z = overlap.width;
+		}
+		else
+		{
+			manifold.y = (collisionNormal.y < 0) ? -1.f : 1.f;
+			manifold.z = overlap.height;
+		}
+
+		return manifold;
+	}
+}
+
 
 World::World(sf::RenderTarget& window)
 	: mWindow(window)
@@ -14,9 +41,12 @@ World::World(sf::RenderTarget& window)
 	, mTileMap()
 	, mTextures()
 	, mSceneGraph()
+	, mCommandQueue()
+	, mBodies()
+	, mPlayer(nullptr)
 {
 	mView.zoom(0.5f);
-	mView.setCenter(mView.getSize().x / 1.25f, mView.getSize().y);
+	mView.setCenter(mView.getSize() / 2.f);
 
 	loadTextures();
 	buildScene();
@@ -24,20 +54,35 @@ World::World(sf::RenderTarget& window)
 
 void World::update(sf::Time dt)
 {
+	if (mPlayer && !mPlayer->isDestroyed())
+	{
+		mView.move(mPlayer->getVelocity().x * dt.asSeconds(), 0.f);
+	}
+
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 	{
-		mView.move(100.f * dt.asSeconds(), 0.f);
+		mPlayer->applyForce({ 40.f, 0.f });
 	}
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 	{
-		mView.move(-100.f * dt.asSeconds(), 0.f);
+		mPlayer->applyForce({ -40.f, 0.f });
 	}
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+	{
+		mPlayer->applyForce({ 0.f, -400.f });
+	}
+
 	destroyEntitiesOutsideView();
+
+	checkForCollision();
 
 	while (!mCommandQueue.isEmpty())
 		mSceneGraph.onCommand(mCommandQueue.pop());
 
+	handleCollision();
+
 	mSceneGraph.removeWrecks();
+
 	mSceneGraph.update(dt, mCommandQueue);
 }
 
@@ -68,19 +113,21 @@ void World::buildScene()
 	if (!mTileMap.loadFromFile("Media/Maps/test002.tmx"))
 		throw std::runtime_error("can't load level");
 
-	mTileMap.setPosition(mWindow.getView().getSize() / 2.f);
-	auto bounds(mTileMap.getLocalBounds());
-	mTileMap.setOrigin(std::floor(bounds.width / 2.f), std::floor(bounds.height / 2.f));
-	mTileMap.updateObjectsTransform();
-
 	for (const auto& object : mTileMap)
 	{
 		if (object.name == "player")
 		{
-			std::unique_ptr<Player> player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
+			auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
+			mPlayer = player.get();
 			player->setPosition(object.position);
-			player->setVelocity(0.f, 50.f);
 			mSceneGraph.attachChild(std::move(player));
+		}
+
+		if (object.name == "solid")
+		{
+			auto solid(std::make_unique<Solid>(Type::FixedSolid, object.size));
+			solid->setPosition(object.position);
+			mSceneGraph.attachChild(std::move(solid));
 		}
 	}
 }
@@ -101,4 +148,57 @@ void World::destroyEntitiesOutsideView()
 	});
 
 	mCommandQueue.push(command);
+}
+
+void World::checkForCollision()
+{
+	mBodies.clear();
+
+	Command command;
+	command.category = Category::All;
+	command.action = [this](auto& node)
+	{
+		if (!node.isDestroyed())
+			mBodies.push_back(&node);
+	};
+
+	mCommandQueue.push(command);
+}
+
+void World::handleCollision()
+{
+	std::set<SceneNode::Pair> collisions;
+
+	for (const auto& bodyA : mBodies)
+	{
+		bodyA->setFootSenseCount(0u);
+		for (const auto& bodyB : mBodies)
+		{
+			if (bodyA != bodyB)
+			{
+				//primary collision between bounding boxes
+				if (bodyA->getBoundingRect().intersects(bodyB->getBoundingRect()))
+				{
+					collisions.insert(std::minmax(bodyA, bodyB));
+				}
+
+				//secondary collisions with sensor boxes
+				if (bodyA->getFootSensorBoundingRect().intersects(bodyB->getBoundingRect()))
+				{
+					unsigned int count = bodyA->getFootSenseCount();
+					count++;
+					bodyA->setFootSenseCount(count);
+				}
+			}
+		}
+	}
+
+	//resolve collision for each pair
+	for (auto pair : collisions)
+	{
+		auto man = getManifold(pair);
+		pair.second->resolve(man, pair.first);
+		man.z = -man.z;
+		pair.first->resolve(man, pair.second);
+	}
 }
