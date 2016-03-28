@@ -22,6 +22,7 @@ public:
 	bool isMarkedForRemoval() const override;
 	unsigned int getCategory() const override;
 	void applyForce(sf::Vector2f velocity);
+	bool isHitWall() const;
 
 
 private:
@@ -43,4 +44,5 @@ private:
 	sf::RectangleShape mFootShape;
 	unsigned int mFootSenseCount;
 	bool mIsMarkedForRemoval;
+	bool mHitWall;
 };

@@ -11,12 +11,9 @@
 namespace
 {
 	//contains the normal in the first two components and penetration in z
-	sf::Vector3f getManifold(SceneNode::Pair& cp)
+	sf::Vector3f getManifold(SceneNode::Pair& cp, sf::FloatRect overlap)
 	{
 		sf::Vector2f collisionNormal = cp.second->getWorldPosition() - cp.first->getWorldPosition();
-		sf::FloatRect overlap;
-
-		cp.first->getBoundingRect().intersects(cp.second->getBoundingRect(), overlap);
 
 		sf::Vector3f manifold;
 		if (overlap.width < overlap.height)
@@ -29,7 +26,6 @@ namespace
 			manifold.y = (collisionNormal.y < 0) ? -1.f : 1.f;
 			manifold.z = overlap.height;
 		}
-
 		return manifold;
 	}
 }
@@ -54,9 +50,12 @@ World::World(sf::RenderTarget& window)
 
 void World::update(sf::Time dt)
 {
-	if (mPlayer && !mPlayer->isDestroyed())
+	if (mPlayer && !mPlayer->isDestroyed()) // todo: this should be in player class
 	{
-		mView.move(mPlayer->getVelocity().x * dt.asSeconds(), 0.f);
+		if (!mPlayer->isHitWall() 
+			&& mView.getCenter().x < mPlayer->getWorldPosition().x 
+			&& mView.getCenter().x < 500.f) // todo: make check with map boundaries
+			mView.move(mPlayer->getVelocity().x * dt.asSeconds(), 0.f);
 	}
 
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
@@ -69,7 +68,7 @@ void World::update(sf::Time dt)
 	}
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 	{
-		mPlayer->applyForce({ 0.f, -400.f });
+		mPlayer->applyForce({ 0.f, -270.f }); 
 	}
 
 	destroyEntitiesOutsideView();
@@ -167,38 +166,31 @@ void World::checkForCollision()
 
 void World::handleCollision()
 {
-	std::set<SceneNode::Pair> collisions;
-
 	for (const auto& bodyA : mBodies)
 	{
 		bodyA->setFootSenseCount(0u);
 		for (const auto& bodyB : mBodies)
 		{
-			if (bodyA != bodyB)
-			{
-				//primary collision between bounding boxes
-				if (bodyA->getBoundingRect().intersects(bodyB->getBoundingRect()))
-				{
-					collisions.insert(std::minmax(bodyA, bodyB));
-				}
+			if (bodyA == bodyB) continue;
 
-				//secondary collisions with sensor boxes
-				if (bodyA->getFootSensorBoundingRect().intersects(bodyB->getBoundingRect()))
-				{
-					unsigned int count = bodyA->getFootSenseCount();
-					count++;
-					bodyA->setFootSenseCount(count);
-				}
+			//secondary collisions with sensor boxes
+			if (bodyA->getFootSensorBoundingRect().intersects(bodyB->getBoundingRect()))
+			{
+				unsigned int count = bodyA->getFootSenseCount();
+				count++;
+				bodyA->setFootSenseCount(count);
+			}
+
+			sf::FloatRect overlap;
+			//primary collision between bounding boxes
+			if (bodyA->getBoundingRect().intersects(bodyB->getBoundingRect(), overlap))
+			{
+				SceneNode::Pair pair(std::minmax(bodyA, bodyB));
+				auto man = getManifold(pair, overlap);
+				pair.second->resolve(man, pair.first);
+				man.z = -man.z;
+				pair.first->resolve(man, pair.second);
 			}
 		}
-	}
-
-	//resolve collision for each pair
-	for (auto pair : collisions)
-	{
-		auto man = getManifold(pair);
-		pair.second->resolve(man, pair.first);
-		man.z = -man.z;
-		pair.first->resolve(man, pair.second);
 	}
 }

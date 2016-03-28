@@ -2,7 +2,7 @@
 #include "ResourceHolder.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
-
+#include <iostream>
 
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
@@ -10,12 +10,13 @@ Player::Player(Type type, const TextureHolder& textures)
 	, mSprite(textures.get(Textures::Player), sf::IntRect(180, 0, 16, 16))
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
+	, mHitWall(false)
 {
 	const float Padding = 2.f;
 
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
-	setScale(1.5f, 1.5f);
+	setScale(1.5f, 2.f);
 
 	mFootShape.setFillColor(sf::Color::Transparent);
 	mFootShape.setOutlineColor(sf::Color::White);
@@ -43,14 +44,16 @@ sf::FloatRect Player::getBoundingRect() const
 
 void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
-	static const sf::Vector2f Gravity(0.f, 80.f);
+	static const sf::Vector2f Gravity(0.f, 25.f); //50X-400
 
 	if(isDestroyed())
 	{
 		mIsMarkedForRemoval = true;
 		return;
 	}
+
 	accelerate(Gravity);
+
 	switch (mBehavors)
 	{
 	case Behavors::Air:
@@ -121,13 +124,23 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		case Type::FixedSolid:
 		case Type::MoveableSolid:
 			if (manifold.x != 0.f) //if side collision prevents shifting vertically
-				setVelocity({});
+			{
+				setVelocity({ });
+				mHitWall = true;
+				break;
+			}
+			if (manifold.y * manifold.z > 0)
+			{
+				std::cout << manifold.y * manifold.z << '\n';
+				move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
+			}
 			else
 			{
+				//std::cout << /*manifold.y **/ manifold.z << '\n';
 				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-				setVelocity({ getVelocity().x, 0.f });
-				mBehavors = Ground;
 			}
+			mBehavors = Ground;
+			mHitWall = false;
 			break;
 		default: break;
 		}
@@ -140,11 +153,22 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		case Type::MoveableSolid:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x == 0)
-				setVelocity({ getVelocity().x, 0.f }); //carry on moving if we hit ground
+			{
+				mHitWall = false;
+				//setVelocity({ getVelocity().x, 0.f }); //carry on moving if we hit ground
+			}
 			else
+			{
+				mHitWall = true;
 				setVelocity({}); //we hit a wall so stop
+			}
 			break;
 		default: break;
 		}
 	}
+}
+
+bool Player::isHitWall() const
+{
+	return mHitWall;
 }

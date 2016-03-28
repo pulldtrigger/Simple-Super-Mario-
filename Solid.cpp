@@ -7,6 +7,8 @@ Solid::Solid(Type type, const sf::Vector2f& size)
 	: mType(type)
 	, mBody(size)
 {
+	//auto bounds = mBody.getLocalBounds();
+	//mBody.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 	mBody.setFillColor(sf::Color::Transparent);
 	mBody.setOutlineColor(sf::Color::Red);
 	mBody.setOutlineThickness(-1.f);

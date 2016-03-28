@@ -9,6 +9,13 @@ Game::Game(const std::string& title, unsigned width, unsigned height)
 	, mTitle(title)
 	, mFullScreen(false)
 {
+	//auto widthi = 1024.f;
+	//auto heighti = 512.f;
+	//auto initialSize = mWindow.getSize();
+	//auto x = initialSize.x / 2.f - widthi / 2.f;
+	//auto y = initialSize.y / 2.f - heighti / 2.f;
+	//mWindow.setSize(sf::Vector2u{ 1024, 512 });
+	//mWindow.setView(sf::View({ x, y, widthi, heighti }));
 }
 
 void Game::run()

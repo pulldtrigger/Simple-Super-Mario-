@@ -9,9 +9,10 @@ int main()
 	try
 	{
 		std::string title = "Mario";
-
 		auto width = 1024u;
 		auto height = 512u;
+		//auto width = 512u;
+		//auto height = 256u;
 
 		Game game(title, width, height);
 
