@@ -6,6 +6,7 @@
 #include "SceneNode.hpp"
 #include "Player.hpp"
 #include "CommandQueue.hpp"
+#include "PlayerController.hpp"
 
 #include <SFML/Graphics/View.hpp>
 
@@ -20,6 +21,7 @@ class World : sf::NonCopyable
 public:
 	explicit World(sf::RenderTarget& window);
 
+	void handleEvent(const sf::Event& event);
 	void update(sf::Time dt);
 	void draw();
 
@@ -44,4 +46,5 @@ private:
 	CommandQueue mCommandQueue;
 	std::vector<SceneNode*> mBodies;
 	Player* mPlayer;
+	PlayerController mPlayerController;
 };

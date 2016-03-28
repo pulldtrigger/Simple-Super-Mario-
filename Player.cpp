@@ -125,20 +125,18 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		case Type::MoveableSolid:
 			if (manifold.x != 0.f) //if side collision prevents shifting vertically
 			{
-				setVelocity({ });
+				auto vel = getVelocity();
+				setVelocity({ -vel.x, 0.f });
+				mBehavors = Ground;
 				mHitWall = true;
 				break;
 			}
+
 			if (manifold.y * manifold.z > 0)
-			{
-				std::cout << manifold.y * manifold.z << '\n';
 				move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
-			}
 			else
-			{
-				//std::cout << /*manifold.y **/ manifold.z << '\n';
 				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			}
+
 			mBehavors = Ground;
 			mHitWall = false;
 			break;
@@ -155,7 +153,6 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			if (manifold.x == 0)
 			{
 				mHitWall = false;
-				//setVelocity({ getVelocity().x, 0.f }); //carry on moving if we hit ground
 			}
 			else
 			{

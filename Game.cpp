@@ -78,6 +78,7 @@ void Game::processEvents()
 				mWindow.create(videoMode, mTitle, style);
 			}
 		}
+		mWorld.handleEvent(event);
 	}
 }
 

@@ -40,12 +40,18 @@ World::World(sf::RenderTarget& window)
 	, mCommandQueue()
 	, mBodies()
 	, mPlayer(nullptr)
+	, mPlayerController()
 {
 	mView.zoom(0.5f);
 	mView.setCenter(mView.getSize() / 2.f);
 
 	loadTextures();
 	buildScene();
+}
+
+void World::handleEvent(const sf::Event& event)
+{
+	mPlayerController.handleEvent(event, mCommandQueue);
 }
 
 void World::update(sf::Time dt)
@@ -57,19 +63,19 @@ void World::update(sf::Time dt)
 			&& mView.getCenter().x < 500.f) // todo: make check with map boundaries
 			mView.move(mPlayer->getVelocity().x * dt.asSeconds(), 0.f);
 	}
-
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-	{
-		mPlayer->applyForce({ 40.f, 0.f });
-	}
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-	{
-		mPlayer->applyForce({ -40.f, 0.f });
-	}
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-	{
-		mPlayer->applyForce({ 0.f, -270.f }); 
-	}
+	mPlayerController.handleRealtimeInput(mCommandQueue);
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+	//{
+	//	mPlayer->applyForce({ 40.f, 0.f });
+	//}
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+	//{
+	//	mPlayer->applyForce({ -40.f, 0.f });
+	//}
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+	//{
+	//	mPlayer->applyForce({ 0.f, -270.f }); 
+	//}
 
 	destroyEntitiesOutsideView();
 
