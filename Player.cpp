@@ -3,28 +3,23 @@
 
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <iostream>
+//#define Debug
 
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
-	, mSprite(textures.get(Textures::Player), sf::IntRect(180, 0, 16, 16))
+	, mSprite(textures.get(Textures::Player), sf::IntRect(180 + 29, 0, 16, 16))//sf::IntRect(209 /*+ 29 * 2*/, 52, 16, 32)
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
-	, mHitWall(false)
 {
-	const float Padding = 2.f;
+	const auto Padding = 2.f;
 
-	auto bounds = mSprite.getLocalBounds();
-	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
-	setScale(1.5f, 2.f);
-
+	const auto bounds = mSprite.getLocalBounds();
 	mFootShape.setFillColor(sf::Color::Transparent);
 	mFootShape.setOutlineColor(sf::Color::White);
 	mFootShape.setSize({ bounds.width, Padding });
-	mFootShape.setPosition(0.f, bounds.height / 2.f);
-	mFootShape.setOutlineThickness(-1.f);
-	bounds = mFootShape.getLocalBounds();
-	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+	mFootShape.setPosition(0.f, bounds.height);
+	mFootShape.setOutlineThickness(-0.5f);
 }
 
 unsigned int Player::getCategory() const
@@ -44,10 +39,11 @@ sf::FloatRect Player::getBoundingRect() const
 
 void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
-	static const sf::Vector2f Gravity(0.f, 25.f); //50X-400
+	static const sf::Vector2f Gravity(0.f, 25.f); //25x-270//50X-400
 
 	if(isDestroyed())
 	{
+		std::cout << "dead\n";
 		mIsMarkedForRemoval = true;
 		return;
 	}
@@ -85,7 +81,9 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 
 void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
-	//target.draw(mFootShape, states);
+#ifdef Debug
+	target.draw(mFootShape, states);
+#endif // Debug
 	target.draw(mSprite, states);
 }
 
@@ -121,24 +119,43 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Air:
 		switch (other->getType())
 		{
-		case Type::FixedSolid:
-		case Type::MoveableSolid:
-			if (manifold.x != 0.f) //if side collision prevents shifting vertically
+		case Type::Brick:
+			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
 			{
 				auto vel = getVelocity();
-				setVelocity({ -vel.x, 0.f });
-				mBehavors = Ground;
-				mHitWall = true;
-				break;
+				vel.x = -vel.x;
+				setVelocity(vel);
 			}
-
-			if (manifold.y * manifold.z > 0)
-				move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
 			else
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+			{
+				mBehavors = Ground;
+				if (manifold.y * manifold.z > 0) // collide with brick from bottom
+				{
+					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+					auto vel = getVelocity();
+					vel.y = -vel.y;
+					setVelocity(vel);
+				}
+				else
+				{
+					move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
+				}
+			}
+			break;
+		case Type::Solid:
+			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
+			{
+				setVelocity({});
+			}
+			else
+			{
+				if (manifold.y * manifold.z > 0)
+					move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
+				else
+					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 
-			mBehavors = Ground;
-			mHitWall = false;
+				mBehavors = Ground;
+			}
 			break;
 		default: break;
 		}
@@ -147,25 +164,13 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Ground:
 		switch (other->getType())
 		{
-		case Type::FixedSolid:
-		case Type::MoveableSolid:
+		case Type::Solid:
+		case Type::Brick:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (manifold.x == 0)
-			{
-				mHitWall = false;
-			}
-			else
-			{
-				mHitWall = true;
+			if (manifold.x != 0)
 				setVelocity({}); //we hit a wall so stop
-			}
 			break;
 		default: break;
 		}
 	}
-}
-
-bool Player::isHitWall() const
-{
-	return mHitWall;
 }

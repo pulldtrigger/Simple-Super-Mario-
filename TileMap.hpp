@@ -43,6 +43,7 @@ public:
 	std::vector<Object>::const_iterator end() const;
 
 	void updateObjectsTransform();
+	sf::Vector2f getMapSize() const;
 
 
 private:
@@ -53,4 +54,5 @@ private:
 	sf::VertexArray mVertices;
 	sf::Texture mTileset;
 	std::vector<Object> mObjects;
+	sf::Vector2f mMapSize;
 };

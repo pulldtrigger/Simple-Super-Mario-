@@ -1,17 +1,15 @@
 #include "Solid.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
-
+//#define Debug
 
 Solid::Solid(Type type, const sf::Vector2f& size)
 	: mType(type)
-	, mBody(size)
+	, mDebugShape(size)
 {
-	//auto bounds = mBody.getLocalBounds();
-	//mBody.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
-	mBody.setFillColor(sf::Color::Transparent);
-	mBody.setOutlineColor(sf::Color::Red);
-	mBody.setOutlineThickness(-1.f);
+	mDebugShape.setFillColor(sf::Color::Transparent);
+	mDebugShape.setOutlineColor(sf::Color::Red);
+	mDebugShape.setOutlineThickness(-0.5f);
 }
 
 unsigned int Solid::getCategory() const
@@ -21,12 +19,14 @@ unsigned int Solid::getCategory() const
 
 sf::FloatRect Solid::getBoundingRect() const
 {
-	return getWorldTransform().transformRect(mBody.getGlobalBounds());
+	return getWorldTransform().transformRect(mDebugShape.getGlobalBounds());
 }
 
 void Solid::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
-	//target.draw(mBody, states);
+#ifdef Debug
+	target.draw(mDebugShape, states);
+#endif // Debug
 }
 
 Type Solid::getType() const

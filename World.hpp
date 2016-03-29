@@ -36,10 +36,13 @@ private:
 	void checkForCollision();
 	void handleCollision();
 
+	void updateCamera();
+
 
 private:
 	sf::RenderTarget& mWindow;
-	sf::View mView;
+	sf::View mWorldView;
+	sf::FloatRect mWorldBounds;
 	TileMap mTileMap;
 	TextureHolder mTextures;
 	SceneNode mSceneGraph;

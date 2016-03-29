@@ -9,6 +9,7 @@ TileMap::TileMap()
 	: mVertices()
 	, mTileset()
 	, mObjects()
+	, mMapSize()
 {
 }
 
@@ -28,6 +29,9 @@ bool TileMap::loadFromFile(const std::string& filename)
 	auto height = mapNode.attribute("height").as_uint();
 	auto tileWidth = mapNode.attribute("tilewidth").as_uint();
 	auto tileHeight = mapNode.attribute("tileheight").as_uint();
+
+	mMapSize.x = mapNode.attribute("width").as_float() * mapNode.attribute("tilewidth").as_float();
+	mMapSize.y = mapNode.attribute("height").as_float() * mapNode.attribute("tileheight").as_float();
 
 	mVertices.setPrimitiveType(sf::Quads);
 	mVertices.resize(width * height * 4);
@@ -132,6 +136,11 @@ void TileMap::updateObjectsTransform()
 	{
 		tile.position = getTransform().transformPoint(tile.position);
 	}
+}
+
+sf::Vector2f TileMap::getMapSize() const
+{
+	return mMapSize;
 }
 
 void TileMap::draw(sf::RenderTarget& target, sf::RenderStates states) const

@@ -21,6 +21,5 @@ private:
 
 private:
 	Type mType;
-	sf::RectangleShape mBody;
-
+	sf::RectangleShape mDebugShape;
 };

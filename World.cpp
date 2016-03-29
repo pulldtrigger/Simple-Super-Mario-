@@ -1,5 +1,6 @@
 #include "World.hpp"
 #include "Solid.hpp"
+#include "Brick.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -10,22 +11,25 @@
 //#define Debug
 namespace
 {
-	//contains the normal in the first two components and penetration in z
-	sf::Vector3f getManifold(SceneNode::Pair& cp, sf::FloatRect overlap)
+	sf::Vector3f getManifold(const SceneNode::Pair& node)
 	{
-		sf::Vector2f collisionNormal = cp.second->getWorldPosition() - cp.first->getWorldPosition();
+		const auto normal = node.second->getWorldPosition() - node.first->getWorldPosition();
+		sf::FloatRect overlap;
+
+		node.first->getBoundingRect().intersects(node.second->getBoundingRect(), overlap);
 
 		sf::Vector3f manifold;
 		if (overlap.width < overlap.height)
 		{
-			manifold.x = (collisionNormal.x < 0) ? -1.f : 1.f;
+			manifold.x = (normal.x < 0) ? -1.f : 1.f;
 			manifold.z = overlap.width;
 		}
 		else
 		{
-			manifold.y = (collisionNormal.y < 0) ? -1.f : 1.f;
+			manifold.y = (normal.y < 0) ? -1.f : 1.f;
 			manifold.z = overlap.height;
 		}
+
 		return manifold;
 	}
 }
@@ -33,7 +37,7 @@ namespace
 
 World::World(sf::RenderTarget& window)
 	: mWindow(window)
-	, mView(window.getDefaultView())
+	, mWorldView(window.getDefaultView())
 	, mTileMap()
 	, mTextures()
 	, mSceneGraph()
@@ -42,9 +46,6 @@ World::World(sf::RenderTarget& window)
 	, mPlayer(nullptr)
 	, mPlayerController()
 {
-	mView.zoom(0.5f);
-	mView.setCenter(mView.getSize() / 2.f);
-
 	loadTextures();
 	buildScene();
 }
@@ -56,26 +57,9 @@ void World::handleEvent(const sf::Event& event)
 
 void World::update(sf::Time dt)
 {
-	if (mPlayer && !mPlayer->isDestroyed()) // todo: this should be in player class
-	{
-		if (!mPlayer->isHitWall() 
-			&& mView.getCenter().x < mPlayer->getWorldPosition().x 
-			&& mView.getCenter().x < 500.f) // todo: make check with map boundaries
-			mView.move(mPlayer->getVelocity().x * dt.asSeconds(), 0.f);
-	}
+	updateCamera();
+
 	mPlayerController.handleRealtimeInput(mCommandQueue);
-	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-	//{
-	//	mPlayer->applyForce({ 40.f, 0.f });
-	//}
-	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-	//{
-	//	mPlayer->applyForce({ -40.f, 0.f });
-	//}
-	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-	//{
-	//	mPlayer->applyForce({ 0.f, -270.f }); 
-	//}
 
 	destroyEntitiesOutsideView();
 
@@ -84,16 +68,16 @@ void World::update(sf::Time dt)
 	while (!mCommandQueue.isEmpty())
 		mSceneGraph.onCommand(mCommandQueue.pop());
 
-	handleCollision();
-
 	mSceneGraph.removeWrecks();
+
+	handleCollision();
 
 	mSceneGraph.update(dt, mCommandQueue);
 }
 
 void World::draw()
 {
-	mWindow.setView(mView);
+	mWindow.setView(mWorldView);
 	mWindow.draw(mTileMap);
 	mWindow.draw(mSceneGraph);
 
@@ -111,12 +95,20 @@ void World::draw()
 void World::loadTextures()
 {
 	mTextures.load(Textures::Player, "Media/Textures/mario_sheet.png");
+	mTextures.load(Textures::Brick, "Media/Textures/mario_tileset.png");
 }
 
 void World::buildScene()
 {
-	if (!mTileMap.loadFromFile("Media/Maps/test002.tmx"))
+	if (!mTileMap.loadFromFile("Media/Maps/test005.tmx"))
 		throw std::runtime_error("can't load level");
+
+	mWorldBounds.left = mWorldBounds.top = 0.f;
+	mWorldBounds.width = mTileMap.getMapSize().x;
+	mWorldBounds.height = mTileMap.getMapSize().y;
+
+	mWorldView.zoom(0.5f);
+	mWorldView.setCenter(mWorldView.getSize() / 2.f);
 
 	for (const auto& object : mTileMap)
 	{
@@ -130,25 +122,32 @@ void World::buildScene()
 
 		if (object.name == "solid")
 		{
-			auto solid(std::make_unique<Solid>(Type::FixedSolid, object.size));
+			auto solid(std::make_unique<Solid>(Type::Solid, object.size));
 			solid->setPosition(object.position);
 			mSceneGraph.attachChild(std::move(solid));
+		}
+
+		if (object.name == "brick")
+		{
+			auto brick(std::make_unique<Brick>(Type::Brick, mTextures));
+			brick->setPosition(object.position);
+			mSceneGraph.attachChild(std::move(brick));
 		}
 	}
 }
 
 sf::FloatRect World::getViewBounds() const
 {
-	return{ mView.getCenter() - mView.getSize() / 2.f, mView.getSize() };
+	return{ mWorldView.getCenter() - mWorldView.getSize() / 2.f, mWorldView.getSize() };
 }
 
 void World::destroyEntitiesOutsideView()
 {
 	Command command;
-	command.category = Category::Player;
+	command.category = Category::All;
 	command.action = derivedAction<Entity>([this](auto& entity)
 	{
-		if (!getViewBounds().intersects(entity.getBoundingRect()))
+		if (!mWorldBounds.intersects(entity.getBoundingRect()))
 			entity.remove();
 	});
 
@@ -172,6 +171,8 @@ void World::checkForCollision()
 
 void World::handleCollision()
 {
+	std::set<SceneNode::Pair> collisions;
+
 	for (const auto& bodyA : mBodies)
 	{
 		bodyA->setFootSenseCount(0u);
@@ -179,24 +180,38 @@ void World::handleCollision()
 		{
 			if (bodyA == bodyB) continue;
 
+			//primary collision between bounding boxes
+			if (bodyA->getBoundingRect().intersects(bodyB->getBoundingRect()))
+			{
+				collisions.insert(std::minmax(bodyA, bodyB));
+			}
+
 			//secondary collisions with sensor boxes
 			if (bodyA->getFootSensorBoundingRect().intersects(bodyB->getBoundingRect()))
 			{
-				unsigned int count = bodyA->getFootSenseCount();
+				auto count = bodyA->getFootSenseCount();
 				count++;
 				bodyA->setFootSenseCount(count);
 			}
-
-			sf::FloatRect overlap;
-			//primary collision between bounding boxes
-			if (bodyA->getBoundingRect().intersects(bodyB->getBoundingRect(), overlap))
-			{
-				SceneNode::Pair pair(std::minmax(bodyA, bodyB));
-				auto man = getManifold(pair, overlap);
-				pair.second->resolve(man, pair.first);
-				man.z = -man.z;
-				pair.first->resolve(man, pair.second);
-			}
 		}
+	}
+
+	//resolve collision for each pair
+	for (const auto& pair : collisions)
+	{
+		auto man = getManifold(pair);
+		pair.second->resolve(man, pair.first);
+		man.z = -man.z;
+		pair.first->resolve(man, pair.second);
+	}
+}
+
+void World::updateCamera()
+{
+	if (mPlayer && !mPlayer->isDestroyed())
+	{
+		if (mPlayer->getWorldPosition().x > mWorldView.getSize().x / 2.f
+			&& mPlayer->getWorldPosition().x < mWorldBounds.width - mWorldView.getSize().x / 2.f)
+			mWorldView.setCenter(mPlayer->getWorldPosition().x, mWorldView.getSize().y / 2.f);
 	}
 }

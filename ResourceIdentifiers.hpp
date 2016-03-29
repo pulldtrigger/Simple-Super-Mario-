@@ -11,6 +11,7 @@ namespace Textures
 	enum ID
 	{
 		Player,
+		Brick,
 	};
 }
 
