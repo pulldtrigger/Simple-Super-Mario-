@@ -7,21 +7,25 @@
 
 Brick::Brick(Type type, const TextureHolder& textures)
 	: mType(type)
-	, mSprite(textures.get(Textures::Brick), sf::IntRect(160, 24, 16, 16))
+	, mSprite(textures.get(Textures::Brick), sf::IntRect(17, 0, 16, 16))
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
 	, mIsHit(false)
 	, mTimer(sf::Time::Zero)
 	, mJump()
 {
-	const auto Padding = 2.f;
+	auto Padding = 2.f;
 
-	const auto bounds = mSprite.getLocalBounds();
+	auto bounds = mSprite.getLocalBounds();
+	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+
 	mFootShape.setFillColor(sf::Color::Transparent);
 	mFootShape.setOutlineColor(sf::Color::Cyan);
 	mFootShape.setSize({ bounds.width, Padding });
-	mFootShape.setPosition(0.f, -Padding);
+	mFootShape.setPosition(0.f, -bounds.height / 2.f);
 	mFootShape.setOutlineThickness(-0.5f);
+	bounds = mFootShape.getLocalBounds();
+	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 }
 
 unsigned int Brick::getCategory() const
@@ -98,11 +102,11 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			// mario has small size, so pentration is low. mul by desire ratio
 			mJump = sf::Vector2f(manifold.x, manifold.y) * manifold.z * 4.5f;
 			move(mJump);
-
 		}
 		break;
 	case Type::BigPlayer:
-		destroy();
+		if (manifold.y * manifold.z < 0) // player is underneth so die
+			destroy();
 		break;
 	case Type::Solid:
 	case Type::Brick:

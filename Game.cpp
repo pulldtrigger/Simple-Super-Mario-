@@ -83,7 +83,7 @@ void Game::update(sf::Time dt)
 
 void Game::render()
 {
-	mWindow.clear();
+	mWindow.clear(sf::Color(90,140,255));
 	mWorld.draw();
 	mWindow.display();
 }

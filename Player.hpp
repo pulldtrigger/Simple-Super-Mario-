@@ -36,6 +36,9 @@ private:
 	Type getType() const override;
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 
+	void updateAnimation(sf::Time dt);
+	void updateDirection(sf::Time dt);
+
 
 private:
 	Type mType;
@@ -44,4 +47,9 @@ private:
 	sf::RectangleShape mFootShape;
 	unsigned int mFootSenseCount;
 	bool mIsMarkedForRemoval;
+
+	sf::Time mElapsedTime;
+	sf::IntRect mJumpRect;
+	sf::IntRect mIdleRect;
+	bool mIsIdle;
 };

@@ -94,13 +94,13 @@ void World::draw()
 
 void World::loadTextures()
 {
-	mTextures.load(Textures::Player, "Media/Textures/mario_sheet.png");
-	mTextures.load(Textures::Brick, "Media/Textures/mario_tileset.png");
+	mTextures.load(Textures::Player, "Media/Textures/NES - Super Mario Bros - Mario Luigi.png");
+	mTextures.load(Textures::Brick, "Media/Textures/NES - Super Mario Bros - Tileset.png");
 }
 
 void World::buildScene()
 {
-	if (!mTileMap.loadFromFile("Media/Maps/test005.tmx"))
+	if (!mTileMap.loadFromFile("Media/Maps/test006.tmx"))
 		throw std::runtime_error("can't load level");
 
 	mWorldBounds.left = mWorldBounds.top = 0.f;
@@ -114,8 +114,9 @@ void World::buildScene()
 	{
 		if (object.name == "player")
 		{
-			auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
+			auto player(std::make_unique<Player>(Type::BigPlayer, mTextures));
 			mPlayer = player.get();
+			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
 			player->setPosition(object.position);
 			mSceneGraph.attachChild(std::move(player));
 		}
@@ -123,14 +124,16 @@ void World::buildScene()
 		if (object.name == "solid")
 		{
 			auto solid(std::make_unique<Solid>(Type::Solid, object.size));
-			solid->setPosition(object.position);
+			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+			solid->setPosition(position);
 			mSceneGraph.attachChild(std::move(solid));
 		}
 
 		if (object.name == "brick")
 		{
 			auto brick(std::make_unique<Brick>(Type::Brick, mTextures));
-			brick->setPosition(object.position);
+			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+			brick->setPosition(position);
 			mSceneGraph.attachChild(std::move(brick));
 		}
 	}

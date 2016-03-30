@@ -8,18 +8,24 @@
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
-	, mSprite(textures.get(Textures::Player), sf::IntRect(180 + 29, 0, 16, 16))//sf::IntRect(209 /*+ 29 * 2*/, 52, 16, 32)
+	, mSprite(textures.get(Textures::Player), (type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16))
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
+	, mElapsedTime(sf::Time::Zero)
+	, mJumpRect((type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0, 16, 32) : sf::IntRect(80 + (16 * 5), 32, 16, 16))
+	, mIdleRect((type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16))
+	, mIsIdle(true)
 {
-	const auto Padding = 2.f;
+	auto bounds = mSprite.getLocalBounds();
+	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 
-	const auto bounds = mSprite.getLocalBounds();
 	mFootShape.setFillColor(sf::Color::Transparent);
 	mFootShape.setOutlineColor(sf::Color::White);
-	mFootShape.setSize({ bounds.width, Padding });
-	mFootShape.setPosition(0.f, bounds.height);
+	mFootShape.setSize({ bounds.width, 2.f });
+	mFootShape.setPosition(0.f, bounds.height / 2.f);
 	mFootShape.setOutlineThickness(-0.5f);
+	bounds = mFootShape.getLocalBounds();
+	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 }
 
 unsigned int Player::getCategory() const
@@ -57,6 +63,13 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 		auto vel = getVelocity();
 		vel.x *= 0.8f;
 		setVelocity(vel);
+
+		if (vel.x < 0)
+			mSprite.setScale(-1.f, 1.f);
+		else
+			mSprite.setScale(1.f, 1.f);
+
+		mSprite.setTextureRect(mJumpRect);
 	}
 	break;
 	case Behavors::Ground:
@@ -72,23 +85,29 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 			//nothing underneath so should be falling / jumping
 			mBehavors = Air;
 		}
+
+		updateDirection(dt);
+
+		updateAnimation(dt);
 	}
 	break;
 	default:break;
 	}
+
 	Entity::updateCurrent(dt, commands);
 }
 
 void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
+	target.draw(mSprite, states);
 #ifdef Debug
 	target.draw(mFootShape, states);
 #endif // Debug
-	target.draw(mSprite, states);
 }
 
 void Player::applyForce(sf::Vector2f velocity)
 {
+	mIsIdle = false;
 	accelerate((getFootSenseCount() == 0u) ? sf::Vector2f(velocity.x, 0.f) : velocity);
 }
 
@@ -128,7 +147,6 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			}
 			else
 			{
-				mBehavors = Ground;
 				if (manifold.y * manifold.z > 0) // collide with brick from bottom
 				{
 					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
@@ -140,6 +158,7 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 				{
 					move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
 				}
+				mBehavors = Ground;
 			}
 			break;
 		case Type::Solid:
@@ -173,4 +192,53 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		default: break;
 		}
 	}
+}
+
+void Player::updateDirection(sf::Time dt)
+{
+	auto displacement = static_cast<int>(getVelocity().x * dt.asSeconds());
+
+	if (displacement < 0)
+	{
+		mSprite.setScale(-1.f, 1.f);
+		mIsIdle = false;
+	}
+	else if (displacement > 0)
+	{
+		mSprite.setScale(1.f, 1.f);
+		mIsIdle = false;
+	}
+	else if (displacement == 0)
+	{
+		mIsIdle = true;
+		mSprite.setTextureRect(mIdleRect);
+	}
+}
+
+void Player::updateAnimation(sf::Time dt)
+{
+	if (mIsIdle) return;
+
+	auto textureRect = mSprite.getTextureRect();
+	const static auto numFrames = 3u;
+	const static auto textureOffest = textureRect.left + textureRect.width;
+	const static auto animationInterval = sf::seconds(1.f);
+	const static auto animateRate = 10.f;
+	const static sf::Vector2i textureBounds(textureRect.width * numFrames, textureRect.height);
+
+	if (mElapsedTime <= sf::Time::Zero)
+	{
+		mElapsedTime += animationInterval / animateRate;
+
+		if (textureRect.left + textureRect.width < textureBounds.x + textureOffest)
+			textureRect.left += textureRect.width;
+		else
+			textureRect = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
+	}
+	else
+	{
+		mElapsedTime -= dt;
+	}
+
+	mSprite.setTextureRect(textureRect);
 }

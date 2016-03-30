@@ -7,6 +7,8 @@ Solid::Solid(Type type, const sf::Vector2f& size)
 	: mType(type)
 	, mDebugShape(size)
 {
+	auto bounds = mDebugShape.getLocalBounds();
+	mDebugShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 	mDebugShape.setFillColor(sf::Color::Transparent);
 	mDebugShape.setOutlineColor(sf::Color::Red);
 	mDebugShape.setOutlineThickness(-0.5f);

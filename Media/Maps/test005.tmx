@@ -3,7 +3,7 @@
  <tileset firstgid="1" name="mario_tileset" tilewidth="16" tileheight="16" tilecount="228">
   <image source="../Textures/mario_tileset.png" width="304" height="192"/>
  </tileset>
- <layer name="Tile Layer 1" width="448" height="16" visible="0">
+ <layer name="Tile Layer 1" width="448" height="16">
   <data>
    <tile gid="48"/>
    <tile gid="48"/>
