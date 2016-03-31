@@ -14,7 +14,7 @@ SceneNode::SceneNode(Category::Type category)
 void SceneNode::attachChild(Ptr child)
 {
 	child->mParent = this;
-	mChildren.push_back(std::move(child));
+	mChildren.emplace_back(std::move(child));
 }
 
 SceneNode::Ptr SceneNode::detachChild(const SceneNode& node)

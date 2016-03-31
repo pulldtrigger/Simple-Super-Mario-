@@ -1,6 +1,7 @@
 #include "World.hpp"
 #include "Solid.hpp"
 #include "Brick.hpp"
+#include "ParticleNode.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -40,7 +41,7 @@ World::World(sf::RenderTarget& window)
 	, mWorldView(window.getDefaultView())
 	, mTileMap()
 	, mTextures()
-	, mSceneGraph()
+	, mSceneGraph(Category::SceneMainLayer)
 	, mCommandQueue()
 	, mBodies()
 	, mPlayer(nullptr)
@@ -96,6 +97,7 @@ void World::loadTextures()
 {
 	mTextures.load(Textures::Player, "Media/Textures/NES - Super Mario Bros - Mario Luigi.png");
 	mTextures.load(Textures::Brick, "Media/Textures/NES - Super Mario Bros - Tileset.png");
+	mTextures.load(Textures::Particle, "Media/Textures/Particle.png");
 }
 
 void World::buildScene()
@@ -137,6 +139,8 @@ void World::buildScene()
 			mSceneGraph.attachChild(std::move(brick));
 		}
 	}
+
+	createParticle();
 }
 
 sf::FloatRect World::getViewBounds() const
@@ -166,7 +170,7 @@ void World::checkForCollision()
 	command.action = [this](auto& node)
 	{
 		if (!node.isDestroyed())
-			mBodies.push_back(&node);
+			mBodies.emplace_back(&node);
 	};
 
 	mCommandQueue.push(command);
@@ -217,4 +221,14 @@ void World::updateCamera()
 			&& mPlayer->getWorldPosition().x < mWorldBounds.width - mWorldView.getSize().x / 2.f)
 			mWorldView.setCenter(mPlayer->getWorldPosition().x, mWorldView.getSize().y / 2.f);
 	}
+}
+
+void World::createParticle()
+{
+	auto explosion(std::make_unique<ParticleNode>(Particle::Splash, mTextures));
+
+	explosion->addAffector(ForceAffector({ 0.f, 160.f }));//gravity
+	explosion->addAffector(RotateAffector(360.f));
+
+	mSceneGraph.attachChild(std::move(explosion));
 }

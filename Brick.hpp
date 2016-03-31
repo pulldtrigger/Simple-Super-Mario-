@@ -28,6 +28,8 @@ private:
 	void setFootSenseCount(unsigned int count) override;
 	unsigned int getFootSenseCount() const override;
 
+	void checkExplosion(CommandQueue& commands);
+
 
 private:
 	Type mType;
@@ -38,4 +40,6 @@ private:
 	bool mIsHit;
 	sf::Time mTimer;
 	sf::Vector2f mJump;
+
+	bool mSpawnedExplosion;
 };

@@ -1,5 +1,7 @@
 #include "Brick.hpp"
 #include "ResourceHolder.hpp"
+#include "ParticleNode.hpp"
+#include "CommandQueue.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <iostream>
@@ -13,6 +15,7 @@ Brick::Brick(Type type, const TextureHolder& textures)
 	, mIsHit(false)
 	, mTimer(sf::Time::Zero)
 	, mJump()
+	, mSpawnedExplosion(false)
 {
 	auto Padding = 2.f;
 
@@ -47,7 +50,7 @@ void Brick::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	if (isDestroyed())
 	{
-		std::cout << "dead\n";
+		checkExplosion(commands);
 		mIsMarkedForRemoval = true;
 		return;
 	}
@@ -112,4 +115,17 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Type::Brick:
 	default: break;
 	}
+}
+
+void Brick::checkExplosion(CommandQueue& commands)
+{
+	if (!mSpawnedExplosion)
+	{
+		Command explosion;
+		explosion.category = Category::ParticleSystem;
+		explosion.action = derivedAction<ParticleNode>(std::bind(&ParticleNode::emit, std::placeholders::_1, getWorldPosition()));
+		commands.push(explosion);
+	}
+
+	mSpawnedExplosion = true;
 }

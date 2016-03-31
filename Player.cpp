@@ -224,7 +224,8 @@ void Player::updateAnimation(sf::Time dt)
 	const static auto textureOffest = textureRect.left + textureRect.width;
 	const static auto animationInterval = sf::seconds(1.f);
 	const static auto animateRate = 10.f;
-	const static sf::Vector2i textureBounds(textureRect.width * numFrames, textureRect.height);
+	const static auto textureBounds = sf::Vector2i(textureRect.width * numFrames, textureRect.height);
+	const static auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
 
 	if (mElapsedTime <= sf::Time::Zero)
 	{
@@ -233,7 +234,7 @@ void Player::updateAnimation(sf::Time dt)
 		if (textureRect.left + textureRect.width < textureBounds.x + textureOffest)
 			textureRect.left += textureRect.width;
 		else
-			textureRect = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
+			textureRect = startTexture;
 	}
 	else
 	{

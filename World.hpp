@@ -37,6 +37,7 @@ private:
 	void handleCollision();
 
 	void updateCamera();
+	void createParticle();
 
 
 private:

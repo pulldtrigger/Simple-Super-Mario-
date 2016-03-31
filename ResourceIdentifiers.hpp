@@ -12,6 +12,7 @@ namespace Textures
 	{
 		Player,
 		Brick,
+		Particle,
 	};
 }
 

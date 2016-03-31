@@ -7,9 +7,11 @@ namespace Category
 	enum Type
 	{
 		None = 0,
-		Player = 1 << 0,
-		Solid = 1 << 1,
-		Brick = 1 << 2,
+		SceneMainLayer = 1 << 0,
+		Player = 1 << 1,
+		Solid = 1 << 2,
+		Brick = 1 << 3,
+		ParticleSystem = 1 << 4,
 		All = Player | Solid | Brick,
 	};
 }

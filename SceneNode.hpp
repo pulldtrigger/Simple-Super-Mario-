@@ -49,8 +49,7 @@ public:
 	virtual Type getType() const;
 	virtual void resolve(const sf::Vector3f& manifold, SceneNode* otherType);
 
-	virtual void setVelocity(float vx, float vy) {}
-	virtual void setVelocity(sf::Vector2f velocity) {}
+
 private:
 	virtual void updateCurrent(sf::Time dt, CommandQueue& commands);
 	void updateChildren(sf::Time dt, CommandQueue& commands);
