@@ -2,7 +2,6 @@
 
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Drawable.hpp>
-#include <SFML/Graphics/Transformable.hpp>
 #include <SFML/System/NonCopyable.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 
@@ -10,7 +9,7 @@
 #include <vector>
 
 
-class TileMap final : public sf::Drawable, public sf::Transformable, private sf::NonCopyable
+class TileMap final : public sf::Drawable, private sf::NonCopyable
 {
 	struct Object
 	{
@@ -35,14 +34,10 @@ public:
 	TileMap();
 
 	bool loadFromFile(const std::string& filename);
-
-	sf::FloatRect getLocalBounds() const;
-	sf::FloatRect getGlobalBounds() const;
 	
 	std::vector<Object>::const_iterator begin() const;
 	std::vector<Object>::const_iterator end() const;
 
-	void updateObjectsTransform();
 	sf::Vector2f getMapSize() const;
 
 

@@ -10,6 +10,7 @@ Game::Game(const std::string& title, unsigned width, unsigned height)
 	, mFullScreen(false)
 {
 	mWindow.setKeyRepeatEnabled(false);
+	mWindow.setVerticalSyncEnabled(true);
 }
 
 void Game::run()
@@ -83,7 +84,8 @@ void Game::update(sf::Time dt)
 
 void Game::render()
 {
-	mWindow.clear(sf::Color(90,140,255));
+	const static auto color = sf::Color(90, 140, 255);
+	mWindow.clear(color);
 	mWorld.draw();
 	mWindow.display();
 }

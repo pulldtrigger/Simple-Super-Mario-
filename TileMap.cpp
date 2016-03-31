@@ -110,16 +110,6 @@ bool TileMap::loadFromFile(const std::string& filename)
 	return true;
 }
 
-sf::FloatRect TileMap::getLocalBounds() const
-{
-	return mVertices.getBounds();
-}
-
-sf::FloatRect TileMap::getGlobalBounds() const
-{
-	return getTransform().transformRect(mVertices.getBounds());
-}
-
 std::vector<TileMap::Object>::const_iterator TileMap::begin() const
 {
 	return mObjects.begin();
@@ -130,14 +120,6 @@ std::vector<TileMap::Object>::const_iterator TileMap::end() const
 	return mObjects.end();
 }
 
-void TileMap::updateObjectsTransform()
-{
-	for (auto&& tile : mObjects)
-	{
-		tile.position = getTransform().transformPoint(tile.position);
-	}
-}
-
 sf::Vector2f TileMap::getMapSize() const
 {
 	return mMapSize;
@@ -145,7 +127,6 @@ sf::Vector2f TileMap::getMapSize() const
 
 void TileMap::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
-	states.transform *= getTransform();
 	states.texture = &mTileset;
 
 	target.draw(mVertices, states);
