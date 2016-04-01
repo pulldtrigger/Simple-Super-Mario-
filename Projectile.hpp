@@ -4,7 +4,6 @@
 #include "ResourceIdentifiers.hpp"
 
 #include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
 
 
 class Projectile final : public Entity
@@ -15,7 +14,7 @@ public:
 	sf::FloatRect getBoundingRect() const override;
 	bool isMarkedForRemoval() const override;
 	unsigned int getCategory() const override;
-	void adaptProjectileVelocity(float x);
+	void adaptProjectileVelocity(float vx);
 
 
 private:

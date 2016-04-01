@@ -1,7 +1,11 @@
 #pragma once
 
+
 #include "Command.hpp"
 #include "Projectile.hpp"
+
+#include <SFML/Graphics/RectangleShape.hpp>
+
 
 class Player final : public Entity
 {

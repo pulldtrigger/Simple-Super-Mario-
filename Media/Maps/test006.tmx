@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-down" width="200" height="16" tilewidth="16" tileheight="16" nextobjectid="14">
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="200" height="16" tilewidth="16" tileheight="16" nextobjectid="23">
  <tileset firstgid="1" name="NES - Super Mario Bros - Tileset" tilewidth="16" tileheight="16" tilecount="924">
   <image source="../Textures/NES - Super Mario Bros - Tileset.png" width="528" height="448"/>
  </tileset>
@@ -1225,6 +1225,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1232,6 +1233,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1423,6 +1425,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1430,6 +1433,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1621,6 +1625,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1628,6 +1633,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1819,6 +1825,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -1826,6 +1833,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2017,6 +2025,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2024,16 +2033,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2225,6 +2225,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2232,8 +2233,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2425,6 +2425,7 @@
    <tile gid="274"/>
    <tile gid="359"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2432,8 +2433,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2625,6 +2625,7 @@
    <tile gid="306"/>
    <tile gid="275"/>
    <tile gid="359"/>
+   <tile gid="492"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -2632,8 +2633,7 @@
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
-   <tile gid="359"/>
-   <tile gid="359"/>
+   <tile gid="328"/>
    <tile gid="359"/>
    <tile gid="359"/>
    <tile gid="359"/>
@@ -3215,6 +3215,5 @@
   <object id="5" name="brick" x="240" y="160" width="16" height="16"/>
   <object id="6" name="brick" x="272" y="160" width="16" height="16"/>
   <object id="9" name="solid" x="0" y="224" width="3200" height="32"/>
-  <object id="12" name="pp" x="129" y="196" width="14" height="13"/>
  </objectgroup>
 </map>

@@ -80,9 +80,10 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	}
 }
 
-void Projectile::adaptProjectileVelocity(float x)
+void Projectile::adaptProjectileVelocity(float vx)
 {
 	auto vel = getVelocity();
-	if (std::abs(vel.x) <= std::abs(x)) vel.x = x * 1.5f;
+	if (std::fabs(vel.x) > std::fabs(vx) || (vel.x * vx) < 0) return;
+	vel.x = vx * 1.5f;
 	setVelocity(vel);
 }

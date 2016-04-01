@@ -55,7 +55,7 @@ sf::FloatRect Player::getBoundingRect() const
 
 void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
-	static const sf::Vector2f Gravity(0.f, 25.f); //25x-270//50X-400
+	static const sf::Vector2f Gravity(0.f, 25.f);
 
 	if(isDestroyed())
 	{
@@ -223,7 +223,7 @@ void Player::updateDirection(sf::Time dt)
 		mIsIdle = false;
 		mIsFacingLeft = true;
 	}
-	else if (displacement == 0)
+	else
 	{
 		mIsIdle = true;
 		mSprite.setTextureRect(mIdleRect);
@@ -268,7 +268,9 @@ void Player::checkProjectileLaunch(sf::Time dt, CommandQueue& commands)
 {
 	using namespace std::placeholders;
 	mBullets.erase(std::remove_if(mBullets.begin(), mBullets.end(), std::mem_fn(&Projectile::isDestroyed)), mBullets.end());
-	std::for_each(mBullets.begin(), mBullets.end(), std::bind(&Projectile::adaptProjectileVelocity, _1, getVelocity().x));
+
+	if (!mIsIdle)
+		std::for_each(mBullets.begin(), mBullets.end(), std::bind(&Projectile::adaptProjectileVelocity, _1, getVelocity().x));
 
 	if (!mIsFiring)	return;
 
