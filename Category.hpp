@@ -11,7 +11,8 @@ namespace Category
 		Player = 1 << 1,
 		Solid = 1 << 2,
 		Brick = 1 << 3,
-		ParticleSystem = 1 << 4,
-		All = Player | Solid | Brick,
+		Projectile = 1 << 4,
+		ParticleSystem = 1 << 5,
+		All = Player | Solid | Brick | Projectile,
 	};
 }

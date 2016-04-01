@@ -4,7 +4,7 @@
 
 
 Game::Game(const std::string& title, unsigned width, unsigned height)
-	: mWindow(sf::VideoMode(width, height), title)
+	: mWindow({ width, height }, title)
 	, mWorld(mWindow)
 	, mTitle(title)
 	, mFullScreen(false)

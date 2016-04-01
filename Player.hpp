@@ -1,11 +1,7 @@
 #pragma once
 
-#include "Entity.hpp"
-#include "ResourceIdentifiers.hpp"
-
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
-
+#include "Command.hpp"
+#include "Projectile.hpp"
 
 class Player final : public Entity
 {
@@ -23,7 +19,7 @@ public:
 	bool isMarkedForRemoval() const override;
 	unsigned int getCategory() const override;
 	void applyForce(sf::Vector2f velocity);
-
+	void fire();
 
 private:
 	void drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const override;
@@ -39,6 +35,9 @@ private:
 	void updateAnimation(sf::Time dt);
 	void updateDirection(sf::Time dt);
 
+	void checkProjectileLaunch(sf::Time dt, CommandQueue& commands);
+	void createProjectile(SceneNode& node, const TextureHolder& textures);
+
 
 private:
 	Type mType;
@@ -52,4 +51,9 @@ private:
 	sf::IntRect mJumpRect;
 	sf::IntRect mIdleRect;
 	bool mIsIdle;
+
+	Command mFireCommand;
+	bool mIsFiring;
+	bool mIsFacingLeft;
+	std::vector<Projectile*> mBullets;
 };

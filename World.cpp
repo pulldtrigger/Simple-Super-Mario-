@@ -98,6 +98,7 @@ void World::loadTextures()
 	mTextures.load(Textures::Player, "Media/Textures/NES - Super Mario Bros - Mario Luigi.png");
 	mTextures.load(Textures::Brick, "Media/Textures/NES - Super Mario Bros - Tileset.png");
 	mTextures.load(Textures::Particle, "Media/Textures/Particle.png");
+	mTextures.load(Textures::Items, "Media/Textures/NES - Super Mario Bros - Items Objects.png");
 }
 
 void World::buildScene()

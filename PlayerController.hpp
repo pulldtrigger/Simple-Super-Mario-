@@ -20,6 +20,7 @@ public:
 		MoveLeft,
 		MoveRight,
 		Jumping,
+		Fire,
 		ActionCount
 	};
 

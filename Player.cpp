@@ -1,7 +1,10 @@
 #include "Player.hpp"
 #include "ResourceHolder.hpp"
+#include "CommandQueue.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <algorithm>
+#include <functional>
 #include <iostream>
 //#define Debug
 
@@ -15,6 +18,10 @@ Player::Player(Type type, const TextureHolder& textures)
 	, mJumpRect((type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0, 16, 32) : sf::IntRect(80 + (16 * 5), 32, 16, 16))
 	, mIdleRect((type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16))
 	, mIsIdle(true)
+	, mFireCommand()
+	, mIsFiring(false)
+	, mIsFacingLeft(true)
+	, mBullets()
 {
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
@@ -26,6 +33,9 @@ Player::Player(Type type, const TextureHolder& textures)
 	mFootShape.setOutlineThickness(-0.5f);
 	bounds = mFootShape.getLocalBounds();
 	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+
+	mFireCommand.category = Category::SceneMainLayer;
+	mFireCommand.action = std::bind(&Player::createProjectile, this, std::placeholders::_1, std::cref(textures));
 }
 
 unsigned int Player::getCategory() const
@@ -65,9 +75,9 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 		setVelocity(vel);
 
 		if (vel.x < 0)
-			mSprite.setScale(-1.f, 1.f);
+			setScale(-1.f, 1.f);
 		else
-			mSprite.setScale(1.f, 1.f);
+			setScale(1.f, 1.f);
 
 		mSprite.setTextureRect(mJumpRect);
 	}
@@ -89,10 +99,13 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 		updateDirection(dt);
 
 		updateAnimation(dt);
+
 	}
 	break;
 	default:break;
 	}
+
+	checkProjectileLaunch(dt, commands);
 
 	Entity::updateCurrent(dt, commands);
 }
@@ -200,13 +213,15 @@ void Player::updateDirection(sf::Time dt)
 
 	if (displacement < 0)
 	{
-		mSprite.setScale(-1.f, 1.f);
+		setScale(-1.f, 1.f);
 		mIsIdle = false;
+		mIsFacingLeft = false;
 	}
 	else if (displacement > 0)
 	{
-		mSprite.setScale(1.f, 1.f);
+		setScale(1.f, 1.f);
 		mIsIdle = false;
+		mIsFacingLeft = true;
 	}
 	else if (displacement == 0)
 	{
@@ -242,4 +257,37 @@ void Player::updateAnimation(sf::Time dt)
 	}
 
 	mSprite.setTextureRect(textureRect);
+}
+
+void Player::fire()
+{
+	mIsFiring = true;
+}
+
+void Player::checkProjectileLaunch(sf::Time dt, CommandQueue& commands)
+{
+	using namespace std::placeholders;
+	mBullets.erase(std::remove_if(mBullets.begin(), mBullets.end(), std::mem_fn(&Projectile::isDestroyed)), mBullets.end());
+	std::for_each(mBullets.begin(), mBullets.end(), std::bind(&Projectile::adaptProjectileVelocity, _1, getVelocity().x));
+
+	if (!mIsFiring)	return;
+
+	mIsFiring = false;
+
+	commands.push(mFireCommand);
+}
+
+void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
+{
+	auto projectile(std::make_unique<Projectile>(Type::Projectile, textures));
+
+	const static sf::Vector2f offset(mSprite.getGlobalBounds().width / 2.f, 0.f);
+
+	auto sign = (mIsFacingLeft) ? 1.f: -1.f;
+	projectile->setPosition(getWorldPosition() + offset * sign);
+	projectile->setVelocity(160.f * sign, -40.f);
+
+	mBullets.emplace_back(projectile.get());
+
+	node.attachChild(std::move(projectile));
 }

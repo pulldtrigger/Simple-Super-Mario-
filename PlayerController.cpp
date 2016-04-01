@@ -8,6 +8,7 @@ PlayerController::PlayerController()
 	mKeyBinding.emplace(sf::Keyboard::Left, MoveLeft);
 	mKeyBinding.emplace(sf::Keyboard::Right, MoveRight);
 	mKeyBinding.emplace(sf::Keyboard::Up, Jumping);
+	mKeyBinding.emplace(sf::Keyboard::Space, Fire);
 
 	initializeActions();
 
@@ -40,7 +41,8 @@ void PlayerController::initializeActions()
 
 	mActionBinding[MoveLeft].action = derivedAction<Player>(std::bind(&Player::applyForce, _1, sf::Vector2f(-40.f, 0.f)));
 	mActionBinding[MoveRight].action = derivedAction<Player>(std::bind(&Player::applyForce, _1, sf::Vector2f(40.f, 0.f)));
-	mActionBinding[Jumping].action = derivedAction<Player>(std::bind(&Player::applyForce, _1, sf::Vector2f(0.f, -470.f)));
+	mActionBinding[Jumping].action = derivedAction<Player>(std::bind(&Player::applyForce, _1, sf::Vector2f(0.f, -475.f)));
+	mActionBinding[Fire].action = derivedAction<Player>(std::bind(&Player::fire, _1));
 }
 
 bool PlayerController::isRealtimeAction(Action action)
@@ -49,6 +51,7 @@ bool PlayerController::isRealtimeAction(Action action)
 	{
 	case MoveLeft:
 	case MoveRight:return true;
+	case Fire:
 	case Jumping:
 	default:return false;
 	}
