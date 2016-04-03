@@ -12,7 +12,8 @@ Brick::Brick(Type type, const TextureHolder& textures)
 	, mSprite(textures.get(Textures::Brick), sf::IntRect(17, 0, 16, 16))
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
-	, mIsHit(false)
+	, mIsHitBySmallPlayer(false)
+	, mIsHitByBigPlayer(false)
 	, mTimer(sf::Time::Zero)
 	, mJump()
 	, mSpawnedExplosion(false)
@@ -50,17 +51,26 @@ void Brick::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	if (isDestroyed())
 	{
+		std::cout << "birck destroyed\n";
 		checkExplosion(commands);
 		mIsMarkedForRemoval = true;
 		return;
 	}
-
 	mTimer += dt;
-	if (mTimer >= sf::seconds(0.25f) && mIsHit)
+	if (mTimer >= sf::seconds(0.0225f) && mIsHitByBigPlayer)
 	{
 		mJump.y = -mJump.y;
 		move(mJump);
-		mIsHit = false;
+
+		destroy();
+		mIsHitByBigPlayer = false;
+	}
+
+	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
+	{
+		mJump.y = -mJump.y;
+		move(mJump);
+		mIsHitBySmallPlayer = false;
 	}
 
 }
@@ -98,9 +108,9 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	switch (other->getType())
 	{
 	case Type::SmallPlayer:
-		if (manifold.y * manifold.z < 0 && !mIsHit)
+		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
 		{
-			mIsHit = true;
+			mIsHitBySmallPlayer = true;
 			mTimer = sf::Time::Zero;
 			// mario has small size, so pentration is low. mul by desire ratio
 			mJump = sf::Vector2f(manifold.x, manifold.y) * manifold.z * 4.5f;
@@ -108,11 +118,27 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		}
 		break;
 	case Type::BigPlayer:
-		if (manifold.y * manifold.z < 0) // player is underneth so die
-			destroy();
+		if (manifold.y * manifold.z < 0 && !mIsHitByBigPlayer)
+		{
+			if (getFootSenseCount() != 0u)
+			{
+				mIsHitByBigPlayer = true;
+				mTimer = sf::Time::Zero;
+				mJump = sf::Vector2f(manifold.x, manifold.y) * manifold.z;
+				move(mJump);
+			}
+			else
+			{
+				destroy();
+			}
+		}
+		break;
+	case Type::Goomba:
+		if (mIsHitBySmallPlayer || mIsHitByBigPlayer) other->die();
 		break;
 	case Type::Solid:
 	case Type::Brick:
+		break;
 	default: break;
 	}
 }

@@ -8,5 +8,6 @@ enum class Type
 	BigPlayer,
 	Solid,
 	Brick,
+	Goomba,
 	Projectile,
 };

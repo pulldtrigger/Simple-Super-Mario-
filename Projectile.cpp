@@ -76,6 +76,10 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			setVelocity(vel);
 		}
 		break;
+	case Type::Goomba:
+		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		destroy();
+		break;
 	default: break;
 	}
 }

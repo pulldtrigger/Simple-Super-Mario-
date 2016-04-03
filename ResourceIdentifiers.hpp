@@ -14,6 +14,7 @@ namespace Textures
 		Brick,
 		Particle,
 		Items,
+		Enemies,
 	};
 }
 

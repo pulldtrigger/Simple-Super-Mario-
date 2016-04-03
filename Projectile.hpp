@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include "Entity.hpp"
 #include "ResourceIdentifiers.hpp"
 
@@ -11,9 +12,6 @@ class Projectile final : public Entity
 public:
 	explicit Projectile(Type type, const TextureHolder& textures);
 
-	sf::FloatRect getBoundingRect() const override;
-	bool isMarkedForRemoval() const override;
-	unsigned int getCategory() const override;
 	void adaptProjectileVelocity(float vx);
 
 
@@ -21,6 +19,9 @@ private:
 	void drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const override;
 	void updateCurrent(sf::Time dt, CommandQueue& commands) override;
 
+	sf::FloatRect getBoundingRect() const override;
+	bool isMarkedForRemoval() const override;
+	unsigned int getCategory() const override;
 	Type getType() const override;
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 

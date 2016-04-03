@@ -2,6 +2,7 @@
 #include "Solid.hpp"
 #include "Brick.hpp"
 #include "ParticleNode.hpp"
+#include "Goomba.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -99,6 +100,7 @@ void World::loadTextures()
 	mTextures.load(Textures::Brick, "Media/Textures/NES - Super Mario Bros - Tileset.png");
 	mTextures.load(Textures::Particle, "Media/Textures/Particle.png");
 	mTextures.load(Textures::Items, "Media/Textures/NES - Super Mario Bros - Items Objects.png");
+	mTextures.load(Textures::Enemies, "Media/Textures/NES - Super Mario Bros - Enemies.png");
 }
 
 void World::buildScene()
@@ -139,6 +141,15 @@ void World::buildScene()
 			brick->setPosition(position);
 			mSceneGraph.attachChild(std::move(brick));
 		}
+
+		if (object.name == "goomba")
+		{
+			auto goomba(std::make_unique<Goomba>(Type::Goomba, mTextures));
+			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+			goomba->setPosition(position);
+			goomba->setVelocity(40.f, 0.f);
+			mSceneGraph.attachChild(std::move(goomba));
+		}
 	}
 
 	createParticle();
@@ -152,7 +163,7 @@ sf::FloatRect World::getViewBounds() const
 void World::destroyEntitiesOutsideView()
 {
 	Command command;
-	command.category = Category::All;
+	command.category = Category::OutOfWorld;
 	command.action = derivedAction<Entity>([this](auto& entity)
 	{
 		if (!mWorldBounds.intersects(entity.getBoundingRect()))
@@ -183,7 +194,7 @@ void World::handleCollision()
 
 	for (const auto& bodyA : mBodies)
 	{
-		bodyA->setFootSenseCount(0u);
+		bodyA->setFootSenseCount(0);
 		for (const auto& bodyB : mBodies)
 		{
 			if (bodyA == bodyB) continue;

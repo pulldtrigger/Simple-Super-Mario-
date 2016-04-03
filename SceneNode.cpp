@@ -152,3 +152,17 @@ Type SceneNode::getType() const
 void SceneNode::resolve(const sf::Vector3f& manifold, SceneNode* otherType)
 {
 }
+
+void SceneNode::die()
+{
+}
+
+unsigned int SceneNode::getAbilities() const
+{ 
+	return 0;
+}
+
+bool SceneNode::isDying() const
+{
+	return false;
+}

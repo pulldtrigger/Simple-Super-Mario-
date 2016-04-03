@@ -19,6 +19,7 @@ int main()
 	catch (std::runtime_error& e)
 	{
 		std::cout << "Exception: " << e.what() << std::endl;
+		std::cin.ignore();
 		return 1;
 	}
 }

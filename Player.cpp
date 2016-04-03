@@ -16,12 +16,18 @@ Player::Player(Type type, const TextureHolder& textures)
 	, mIsMarkedForRemoval(false)
 	, mElapsedTime(sf::Time::Zero)
 	, mJumpRect((type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0, 16, 32) : sf::IntRect(80 + (16 * 5), 32, 16, 16))
+	, mDirectionRect((type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 4), 0, 16, 32) : sf::IntRect(80 + (16 * 4), 32, 16, 16))
 	, mIdleRect((type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16))
-	, mIsIdle(true)
+	, mDirectionTime(sf::Time::Zero)
+	, mCurrentDirection(Right | Up)
+	, mPreviousDirection(Right | Up)
+	, isChangingDirection(false)
+	, isRightFace(true)
+	, mAbilities(Abilities::Fireable | Abilities::Invincible)
 	, mFireCommand()
 	, mIsFiring(false)
-	, mIsFacingLeft(true)
 	, mBullets()
+	, mIsDying(false)
 {
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
@@ -74,36 +80,70 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 		vel.x *= 0.8f;
 		setVelocity(vel);
 
-		if (vel.x < 0)
-			setScale(-1.f, 1.f);
-		else
-			setScale(1.f, 1.f);
+		auto displacement = static_cast<int>(vel.x * dt.asSeconds());
 
-		mSprite.setTextureRect(mJumpRect);
+		if (displacement > 0)
+		{
+			mCurrentDirection &= ~(Left);
+			mCurrentDirection |= Right;
+		}
+		else if (displacement < 0)
+		{
+			mCurrentDirection &= ~(Right);
+			mCurrentDirection |= Left;
+		}
 	}
 	break;
 	case Behavors::Ground:
 	{
 		auto vel = getVelocity();
 		if (vel.y > 0.f) vel.y = 0.f;
-
-		vel.x *= 0.86f;
+		vel.x *= 0.83f;
 		setVelocity(vel);
+
+		auto displacement = static_cast<int>(vel.x * dt.asSeconds());
+
+		if (displacement < 0)
+		{
+			mCurrentDirection &= ~(Idle | Right);
+			mCurrentDirection |= Left;
+		}
+		else if (displacement > 0)
+		{
+			mCurrentDirection &= ~(Idle | Left);
+			mCurrentDirection |= Right;
+		}
+		else
+		{
+			mCurrentDirection &= ~(Right | Left | Up);
+			mCurrentDirection |= Idle;
+		}
 
 		if (getFootSenseCount() == 0u)
 		{
 			//nothing underneath so should be falling / jumping
 			mBehavors = Air;
+			mCurrentDirection &= ~(Idle);
+			mCurrentDirection |= Up;
 		}
-
-		updateDirection(dt);
-
-		updateAnimation(dt);
+	}
+	break;
+	case Behavors::Dying:
+	{
+		auto vel = getVelocity();
+		vel.x = 0.f;
+		setVelocity(vel);
 
 	}
 	break;
 	default:break;
 	}
+
+	updateDirection(dt);
+
+	updateAnimation(dt);
+
+	checkProjectiles();
 
 	checkProjectileLaunch(dt, commands);
 
@@ -120,7 +160,6 @@ void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) cons
 
 void Player::applyForce(sf::Vector2f velocity)
 {
-	mIsIdle = false;
 	accelerate((getFootSenseCount() == 0u) ? sf::Vector2f(velocity.x, 0.f) : velocity);
 }
 
@@ -144,6 +183,11 @@ Type Player::getType() const
 	return mType;
 }
 
+bool Player::isDying() const
+{
+	return mIsDying;
+}
+
 void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
 	switch (mBehavors)
@@ -152,41 +196,50 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		switch (other->getType())
 		{
 		case Type::Brick:
+		case Type::Solid:
 			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
 			{
-				auto vel = getVelocity();
-				vel.x = -vel.x;
-				setVelocity(vel);
+				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+				setVelocity({});
 			}
 			else
 			{
-				if (manifold.y * manifold.z > 0) // collide with brick from bottom
+				if (manifold.y * manifold.z > 0)// collide with brick from bottom
 				{
 					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 					auto vel = getVelocity();
 					vel.y = -vel.y;
 					setVelocity(vel);
 				}
-				else
-				{
-					move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
-				}
+
 				mBehavors = Ground;
+				mCurrentDirection &= ~(Up);
+				mCurrentDirection |= Idle;
+
 			}
 			break;
-		case Type::Solid:
-			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
+		case Type::Goomba:	
+			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+			if (manifold.x != 0)
 			{
-				setVelocity({});
+				if (other->isDying()) break;
+				if (mAbilities & Abilities::Invincible) break;
+				if (manifold.x != 0) // TODO: respawn player
+				{
+					auto vel = getVelocity();
+					vel.y = -300.f; // jump force
+					vel.x = 0.f;
+					setVelocity(vel);
+					setScale(1.f, -1.f);
+					mBehavors = Dying;
+					mIsDying = true;
+				}
 			}
 			else
 			{
-				if (manifold.y * manifold.z > 0)
-					move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
-				else
-					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-
-				mBehavors = Ground;
+				auto vel = getVelocity();
+				vel.y = -vel.y;//-380.f;
+				setVelocity(vel);
 			}
 			break;
 		default: break;
@@ -201,6 +254,23 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 				setVelocity({}); //we hit a wall so stop
+
+			break;
+		case Type::Goomba:
+			if (other->isDying()) break;
+			if (mAbilities & Abilities::Invincible) break;
+			if (manifold.x != 0) // TODO: respawn player
+			{
+				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+				auto vel = getVelocity();
+				vel.y = -400.f; // jump force
+				vel.x = 0.f;
+				setVelocity(vel);
+				setScale(1.f, -1.f);
+				mBehavors = Dying;
+				mIsDying = true;
+			}
+
 			break;
 		default: break;
 		}
@@ -209,30 +279,59 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 
 void Player::updateDirection(sf::Time dt)
 {
-	auto displacement = static_cast<int>(getVelocity().x * dt.asSeconds());
+	if (!(mPreviousDirection ^ mCurrentDirection)) return;
 
-	if (displacement < 0)
-	{
-		setScale(-1.f, 1.f);
-		mIsIdle = false;
-		mIsFacingLeft = false;
-	}
-	else if (displacement > 0)
+	if (mCurrentDirection & Right)
 	{
 		setScale(1.f, 1.f);
-		mIsIdle = false;
-		mIsFacingLeft = true;
+		isRightFace = true;
+		if (getFootSenseCount() != 0u)
+		{
+			isChangingDirection = true;
+			mSprite.setTextureRect(mDirectionRect);
+		}
 	}
-	else
+
+	if (mCurrentDirection & Left)
 	{
-		mIsIdle = true;
+		setScale(-1.f, 1.f);
+		isRightFace = false;
+		if (getFootSenseCount() != 0u)
+		{
+			isChangingDirection = true;
+			mSprite.setTextureRect(mDirectionRect);
+		}
+	}
+
+	if (mCurrentDirection & Up)
+	{
+		mSprite.setTextureRect(mJumpRect);
+	}
+
+	if (mCurrentDirection & Idle)
+	{
+		//isDirectionAnimation = true;
 		mSprite.setTextureRect(mIdleRect);
 	}
+
+	mPreviousDirection = mCurrentDirection;
 }
 
 void Player::updateAnimation(sf::Time dt)
 {
-	if (mIsIdle) return;
+	if (mCurrentDirection & (Idle | Up)) return;
+
+	// changing direction anim
+	if (isChangingDirection && mDirectionTime <= sf::Time::Zero)
+	{
+		isChangingDirection = false;
+		mDirectionTime += sf::seconds(0.2f);
+		mSprite.setTextureRect(mIdleRect);
+	}
+	else if (isChangingDirection)
+	{
+		mDirectionTime -= dt;
+	}
 
 	auto textureRect = mSprite.getTextureRect();
 	const static auto numFrames = 3u;
@@ -242,7 +341,8 @@ void Player::updateAnimation(sf::Time dt)
 	const static auto textureBounds = sf::Vector2i(textureRect.width * numFrames, textureRect.height);
 	const static auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
 
-	if (mElapsedTime <= sf::Time::Zero)
+	// running anim
+	if (!isChangingDirection && mElapsedTime <= sf::Time::Zero)
 	{
 		mElapsedTime += animationInterval / animateRate;
 
@@ -251,12 +351,17 @@ void Player::updateAnimation(sf::Time dt)
 		else
 			textureRect = startTexture;
 	}
-	else
+	else if (!isChangingDirection)
 	{
 		mElapsedTime -= dt;
 	}
 
 	mSprite.setTextureRect(textureRect);
+}
+
+unsigned int Player::getAbilities() const
+{
+	return mAbilities;
 }
 
 void Player::fire()
@@ -266,26 +371,31 @@ void Player::fire()
 
 void Player::checkProjectileLaunch(sf::Time dt, CommandQueue& commands)
 {
-	using namespace std::placeholders;
-	mBullets.erase(std::remove_if(mBullets.begin(), mBullets.end(), std::mem_fn(&Projectile::isDestroyed)), mBullets.end());
-
-	if (!mIsIdle)
-		std::for_each(mBullets.begin(), mBullets.end(), std::bind(&Projectile::adaptProjectileVelocity, _1, getVelocity().x));
-
-	if (!mIsFiring)	return;
+	if (!mIsFiring || !(mAbilities & Abilities::Fireable))	return;
 
 	mIsFiring = false;
 
 	commands.push(mFireCommand);
 }
 
+void Player::checkProjectiles()
+{
+	using namespace std::placeholders;
+
+	mBullets.erase(std::remove_if(mBullets.begin(), mBullets.end(), std::mem_fn(&Projectile::isDestroyed)), mBullets.end());
+
+	if (mCurrentDirection & Idle) return;
+
+	std::for_each(mBullets.begin(), mBullets.end(), std::bind(&Projectile::adaptProjectileVelocity, _1, getVelocity().x));
+}
+
 void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
 {
 	auto projectile(std::make_unique<Projectile>(Type::Projectile, textures));
 
-	const static sf::Vector2f offset(mSprite.getGlobalBounds().width / 2.f, 0.f);
+	const static sf::Vector2f offset(mSprite.getLocalBounds().width / 2.f, 0.f);
 
-	auto sign = (mIsFacingLeft) ? 1.f: -1.f;
+	auto sign = (isRightFace) ? 1.f: -1.f;
 	projectile->setPosition(getWorldPosition() + offset * sign);
 	projectile->setVelocity(160.f * sign, -40.f);
 

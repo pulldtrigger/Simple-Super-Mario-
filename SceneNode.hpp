@@ -48,6 +48,9 @@ public:
 	virtual sf::FloatRect getFootSensorBoundingRect() const;
 	virtual Type getType() const;
 	virtual void resolve(const sf::Vector3f& manifold, SceneNode* otherType);
+	virtual void die();
+	virtual unsigned int getAbilities() const;
+	virtual bool isDying() const;
 
 
 private:

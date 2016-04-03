@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include "Entity.hpp"
 #include "ResourceIdentifiers.hpp"
 
@@ -7,10 +8,18 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 
 
-class Brick final : public Entity
+class Goomba final : public Entity
 {
+	enum Behavors
+	{
+		Air,
+		Ground,
+		Dying
+	};
+
+
 public:
-	explicit Brick(Type type, const TextureHolder& textures);
+	explicit Goomba(Type type, const TextureHolder& textures);
 
 
 private:
@@ -21,26 +30,29 @@ private:
 	bool isMarkedForRemoval() const override;
 	unsigned int getCategory() const override;
 
-	Type getType() const override;
-	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 	sf::FloatRect getFootSensorBoundingRect() const override;
 
 	void setFootSenseCount(unsigned int count) override;
 	unsigned int getFootSenseCount() const override;
+	Type getType() const override;
+	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 
-	void checkExplosion(CommandQueue& commands);
+	void die() override;
+	bool isDying() const override;
+
+	void updateAnimation(sf::Time dt);
 
 
 private:
 	Type mType;
+	Behavors mBehavors;
 	sf::Sprite mSprite;
 	sf::RectangleShape mFootShape;
 	unsigned int mFootSenseCount;
 	bool mIsMarkedForRemoval;
-	bool mIsHitBySmallPlayer;
-	bool mIsHitByBigPlayer;
-	sf::Time mTimer;
-	sf::Vector2f mJump;
 
-	bool mSpawnedExplosion;
+	sf::Time mElapsedTime;
+	sf::Time mDyingTimer;
+	bool mIsDying;
+	bool mIsCrushed;
 };
