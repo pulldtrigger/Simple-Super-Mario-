@@ -15,7 +15,7 @@ Brick::Brick(Type type, const TextureHolder& textures)
 	, mIsHitBySmallPlayer(false)
 	, mIsHitByBigPlayer(false)
 	, mTimer(sf::Time::Zero)
-	, mJump()
+	, mJump(0.f, -5.2f)
 	, mSpawnedExplosion(false)
 {
 	auto Padding = 2.f;
@@ -59,17 +59,14 @@ void Brick::updateCurrent(sf::Time dt, CommandQueue& commands)
 	mTimer += dt;
 	if (mTimer >= sf::seconds(0.0225f) && mIsHitByBigPlayer)
 	{
-		mJump.y = -mJump.y;
-		move(mJump);
-
+		move(-mJump);
 		destroy();
 		mIsHitByBigPlayer = false;
 	}
 
 	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
 	{
-		mJump.y = -mJump.y;
-		move(mJump);
+		move(-mJump);
 		mIsHitBySmallPlayer = false;
 	}
 
@@ -112,8 +109,6 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		{
 			mIsHitBySmallPlayer = true;
 			mTimer = sf::Time::Zero;
-			// mario has small size, so pentration is low. mul by desire ratio
-			mJump = sf::Vector2f(manifold.x, manifold.y) * manifold.z * 4.5f;
 			move(mJump);
 		}
 		break;
@@ -124,7 +119,6 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			{
 				mIsHitByBigPlayer = true;
 				mTimer = sf::Time::Zero;
-				mJump = sf::Vector2f(manifold.x, manifold.y) * manifold.z;
 				move(mJump);
 			}
 			else

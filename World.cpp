@@ -47,6 +47,7 @@ World::World(sf::RenderTarget& window)
 	, mBodies()
 	, mPlayer(nullptr)
 	, mPlayerController()
+	, mPlayerFactory(mTextures)
 {
 	loadTextures();
 	buildScene();
@@ -55,6 +56,27 @@ World::World(sf::RenderTarget& window)
 void World::handleEvent(const sf::Event& event)
 {
 	mPlayerController.handleEvent(event, mCommandQueue);
+	switch (event.type)
+	{
+
+	case sf::Event::KeyPressed:
+		switch (event.key.code)
+		{
+		case sf::Keyboard::Num1:
+			mPlayer->destroy();
+			break;
+		case sf::Keyboard::Num2:
+			mPlayer = mPlayerFactory.spawn();
+			break;
+		case sf::Keyboard::P:
+
+			break;
+		default:break;
+		}
+		break;
+	default: break;
+
+	}
 }
 
 void World::update(sf::Time dt)
@@ -70,7 +92,16 @@ void World::update(sf::Time dt)
 	while (!mCommandQueue.isEmpty())
 		mSceneGraph.onCommand(mCommandQueue.pop());
 
+	// Check if Player Dead
+	if (mPlayerFactory.update(dt))
+		return;
+
 	mSceneGraph.removeWrecks();
+
+	if (mPlayer == nullptr || mPlayer->isDestroyed())
+	{
+		mPlayer = mPlayerFactory.spawn();
+	}
 
 	handleCollision();
 
@@ -105,7 +136,7 @@ void World::loadTextures()
 
 void World::buildScene()
 {
-	if (!mTileMap.loadFromFile("Media/Maps/test006.tmx"))
+	if (!mTileMap.loadFromFile("Media/Maps/test007.tmx"))
 		throw std::runtime_error("can't load level");
 
 	mWorldBounds.left = mWorldBounds.top = 0.f;
@@ -119,11 +150,9 @@ void World::buildScene()
 	{
 		if (object.name == "player")
 		{
-			auto player(std::make_unique<Player>(Type::BigPlayer, mTextures));
-			mPlayer = player.get();
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-			player->setPosition(object.position);
-			mSceneGraph.attachChild(std::move(player));
+			mPlayerFactory.setSceneNode(&mSceneGraph);
+			mPlayer = mPlayerFactory.create(position);
 		}
 
 		if (object.name == "solid")
@@ -194,7 +223,7 @@ void World::handleCollision()
 
 	for (const auto& bodyA : mBodies)
 	{
-		bodyA->setFootSenseCount(0);
+		bodyA->setFootSenseCount(0u);
 		for (const auto& bodyB : mBodies)
 		{
 			if (bodyA == bodyB) continue;

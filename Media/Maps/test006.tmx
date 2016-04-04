@@ -3226,6 +3226,6 @@
   <object id="36" name="solid" x="448" y="192" width="32" height="32"/>
   <object id="37" name="solid" x="560" y="160" width="16" height="64"/>
   <object id="38" name="solid" x="607" y="160" width="16" height="64"/>
-  <object id="39" name="solid" x="672" y="64" width="16" height="160"/>
+  <object id="39" name="solid" x="2672" y="64" width="16" height="160"/>
  </objectgroup>
 </map>

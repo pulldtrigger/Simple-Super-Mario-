@@ -6,7 +6,7 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <algorithm>
 #include <functional>
-#include <iostream>
+
 //#define Debug
 
 Goomba::Goomba(Type type, const TextureHolder& textures)

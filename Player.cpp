@@ -1,12 +1,13 @@
 #include "Player.hpp"
 #include "ResourceHolder.hpp"
 #include "CommandQueue.hpp"
+#include "Utility.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <algorithm>
 #include <functional>
-#include <iostream>
-//#define Debug
+
+#define Debug
 
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
@@ -23,11 +24,14 @@ Player::Player(Type type, const TextureHolder& textures)
 	, mPreviousDirection(Right | Up)
 	, isChangingDirection(false)
 	, isRightFace(true)
-	, mAbilities(Abilities::Fireable | Abilities::Invincible)
+	, mAbilities((type == Type::BigPlayer) ? Abilities::Regular : Abilities::Fireable | Abilities::Invincible/*Abilities::Regular*/)
 	, mFireCommand()
 	, mIsFiring(false)
 	, mBullets()
 	, mIsDying(false)
+	//, mTimer(sf::Time::Zero)
+	//, mCanSpawn(true)
+	//, mBlinkEffect(true)
 {
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
@@ -54,6 +58,16 @@ bool Player::isMarkedForRemoval() const
 	return mIsMarkedForRemoval;
 }
 
+void Player::setMarkToRemove()
+{
+	mIsMarkedForRemoval = true;
+}
+
+void Player::playerHitEffect()
+{
+	mSprite.setColor({ 255u, 255u, 255u, static_cast<sf::Uint8>(utility::random(1, 255)) });
+}
+
 sf::FloatRect Player::getBoundingRect() const
 {
 	return getWorldTransform().transformRect(mSprite.getGlobalBounds());
@@ -63,12 +77,27 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	static const sf::Vector2f Gravity(0.f, 25.f);
 
-	if(isDestroyed())
+	if(isDestroyed() && mType == Type::SmallPlayer)
 	{
-		std::cout << "dead\n";
+		std::cout << "Mario died\n";
 		mIsMarkedForRemoval = true;
 		return;
 	}
+
+
+	//if (mCanSpawn && mTimer > sf::seconds(0.75f))
+	//{
+	//	mCanSpawn = false;
+	//	mTimer = sf::Time::Zero;
+	//	mSprite.setColor(sf::Color::White);
+	//	mBlinkEffect = true;
+	//}
+	//else if (mCanSpawn)
+	//{
+	//	//playerHitEffect();
+	//	mBlinkEffect = !mBlinkEffect;
+	//	mTimer += dt;
+	//}
 
 	accelerate(Gravity);
 
@@ -119,7 +148,7 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 			mCurrentDirection |= Idle;
 		}
 
-		if (getFootSenseCount() == 0u)
+		if (mFootSenseCount == 0u)
 		{
 			//nothing underneath so should be falling / jumping
 			mBehavors = Air;
@@ -133,7 +162,7 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 		auto vel = getVelocity();
 		vel.x = 0.f;
 		setVelocity(vel);
-
+		playerHitEffect();
 	}
 	break;
 	default:break;
@@ -148,11 +177,14 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 	checkProjectileLaunch(dt, commands);
 
 	Entity::updateCurrent(dt, commands);
+
+	//std::cout << getVelocity().y << " " << mFootSenseCount<< '\n';
 }
 
 void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
-	target.draw(mSprite, states);
+	//if (mBlinkEffect)
+		target.draw(mSprite, states);
 #ifdef Debug
 	target.draw(mFootShape, states);
 #endif // Debug
@@ -215,7 +247,6 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 				mBehavors = Ground;
 				mCurrentDirection &= ~(Up);
 				mCurrentDirection |= Idle;
-
 			}
 			break;
 		case Type::Goomba:	
@@ -224,15 +255,23 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			{
 				if (other->isDying()) break;
 				if (mAbilities & Abilities::Invincible) break;
-				if (manifold.x != 0) // TODO: respawn player
+				if (manifold.x != 0)
 				{
-					auto vel = getVelocity();
-					vel.y = -300.f; // jump force
-					vel.x = 0.f;
-					setVelocity(vel);
-					setScale(1.f, -1.f);
-					mBehavors = Dying;
-					mIsDying = true;
+					if (mType == Type::BigPlayer)
+					{
+						destroy();
+					}
+					else
+					{
+						move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+						auto vel = getVelocity();
+						vel.y = -475.f; // jump force
+						vel.x = 0.f;
+						setVelocity(vel);
+						setScale(1.f, -1.f);
+						mBehavors = Dying;
+						mIsDying = true;
+					}
 				}
 			}
 			else
@@ -254,23 +293,28 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 				setVelocity({}); //we hit a wall so stop
-
 			break;
 		case Type::Goomba:
 			if (other->isDying()) break;
 			if (mAbilities & Abilities::Invincible) break;
-			if (manifold.x != 0) // TODO: respawn player
+			if (manifold.x != 0)
 			{
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-				auto vel = getVelocity();
-				vel.y = -400.f; // jump force
-				vel.x = 0.f;
-				setVelocity(vel);
-				setScale(1.f, -1.f);
-				mBehavors = Dying;
-				mIsDying = true;
+				if (mType == Type::BigPlayer)
+				{
+					destroy();
+				}
+				else
+				{
+					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+					auto vel = getVelocity();
+					vel.y = -475.f; // jump force
+					vel.x = 0.f;
+					setVelocity(vel);
+					setScale(1.f, -1.f);
+					mBehavors = Dying;
+					mIsDying = true;
+				}
 			}
-
 			break;
 		default: break;
 		}
@@ -285,7 +329,7 @@ void Player::updateDirection(sf::Time dt)
 	{
 		setScale(1.f, 1.f);
 		isRightFace = true;
-		if (getFootSenseCount() != 0u)
+		if (mFootSenseCount != 0u)
 		{
 			isChangingDirection = true;
 			mSprite.setTextureRect(mDirectionRect);
@@ -296,7 +340,7 @@ void Player::updateDirection(sf::Time dt)
 	{
 		setScale(-1.f, 1.f);
 		isRightFace = false;
-		if (getFootSenseCount() != 0u)
+		if (mFootSenseCount != 0u)
 		{
 			isChangingDirection = true;
 			mSprite.setTextureRect(mDirectionRect);
@@ -339,7 +383,7 @@ void Player::updateAnimation(sf::Time dt)
 	const static auto animationInterval = sf::seconds(1.f);
 	const static auto animateRate = 10.f;
 	const static auto textureBounds = sf::Vector2i(textureRect.width * numFrames, textureRect.height);
-	const static auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
+	const auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
 
 	// running anim
 	if (!isChangingDirection && mElapsedTime <= sf::Time::Zero)

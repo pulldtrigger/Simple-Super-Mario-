@@ -13,6 +13,7 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <iostream>
 
 struct Command;
 class CommandQueue;

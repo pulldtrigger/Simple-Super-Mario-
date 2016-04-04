@@ -41,7 +41,8 @@ public:
 
 	void applyForce(sf::Vector2f velocity);
 	void fire();
-
+	void playerHitEffect();
+	void setMarkToRemove();
 
 private:
 	void drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const override;
@@ -93,4 +94,7 @@ private:
 	std::vector<Projectile*> mBullets;
 
 	bool mIsDying; // TODO: remove it
+	//sf::Time mTimer;
+	//bool mCanSpawn;
+	//bool mBlinkEffect;
 };

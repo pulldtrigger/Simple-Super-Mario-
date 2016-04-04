@@ -41,7 +41,6 @@ void SceneNode::update(sf::Time dt, CommandQueue& commands)
 
 void SceneNode::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
-	// do nothing
 }
 
 void SceneNode::updateChildren(sf::Time dt, CommandQueue& commands)
@@ -52,7 +51,6 @@ void SceneNode::updateChildren(sf::Time dt, CommandQueue& commands)
 
 void SceneNode::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
-
 	states.transform *= getTransform();
 
 	drawCurrent(target, states);
@@ -61,7 +59,6 @@ void SceneNode::draw(sf::RenderTarget& target, sf::RenderStates states) const
 
 void SceneNode::drawCurrent(sf::RenderTarget&, sf::RenderStates) const
 {
-	// Do nothing by default
 }
 
 void SceneNode::drawChildren(sf::RenderTarget& target, sf::RenderStates states) const
