@@ -7,20 +7,20 @@
 #include "Player.hpp"
 #include "CommandQueue.hpp"
 #include "PlayerController.hpp"
-#include "PlayerFactory.hpp"
+//#include "PlayerFactory.hpp"
 
 #include <SFML/Graphics/View.hpp>
 
 
 namespace sf
 {
-	class RenderTarget;
+	class RenderWindow;
 }
 
 class World : sf::NonCopyable
 {
 public:
-	explicit World(sf::RenderTarget& window);
+	explicit World(sf::RenderWindow& window);
 
 	void handleEvent(const sf::Event& event);
 	void update(sf::Time dt);
@@ -40,9 +40,13 @@ private:
 	void updateCamera();
 	void createParticle();
 
+	void addPlayer(sf::Vector2f position);
+	void addGoomba(sf::Vector2f position);
+	void addBrick(sf::Vector2f position);
+
 
 private:
-	sf::RenderTarget& mWindow;
+	sf::RenderWindow& mWindow;
 	sf::View mWorldView;
 	sf::FloatRect mWorldBounds;
 	TileMap mTileMap;
@@ -52,6 +56,6 @@ private:
 	std::vector<SceneNode*> mBodies;
 	Player* mPlayer;
 	PlayerController mPlayerController;
-	PlayerFactory mPlayerFactory;
+	//PlayerFactory mPlayerFactory;
 
 };

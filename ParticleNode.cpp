@@ -13,10 +13,10 @@ namespace
 	const static auto lifetime = sf::seconds(2.5f);
 	const static std::vector<sf::Vector2f> splatVelocities =
 	{
-		{ -30.f, -90.f },
-		{  30.f, -90.f },
-		{ -50.f, -70.f },
-		{  50.f, -70.f },
+		{ -50.f, -120.f },
+		{  50.f, -120.f },
+		{ -70.f, -90.f },
+		{  70.f, -90.f },
 	};
 }
 

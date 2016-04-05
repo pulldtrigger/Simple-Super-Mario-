@@ -13,6 +13,7 @@
 //#define Debug
 namespace
 {
+	bool isTile = false;
 	sf::Vector3f getManifold(const SceneNode::Pair& node)
 	{
 		const auto normal = node.second->getWorldPosition() - node.first->getWorldPosition();
@@ -37,7 +38,7 @@ namespace
 }
 
 
-World::World(sf::RenderTarget& window)
+World::World(sf::RenderWindow& window)
 	: mWindow(window)
 	, mWorldView(window.getDefaultView())
 	, mTileMap()
@@ -47,7 +48,6 @@ World::World(sf::RenderTarget& window)
 	, mBodies()
 	, mPlayer(nullptr)
 	, mPlayerController()
-	, mPlayerFactory(mTextures)
 {
 	loadTextures();
 	buildScene();
@@ -58,18 +58,38 @@ void World::handleEvent(const sf::Event& event)
 	mPlayerController.handleEvent(event, mCommandQueue);
 	switch (event.type)
 	{
-
+	case sf::Event::MouseButtonPressed:
+		{
+			auto position = mWindow.mapPixelToCoords(sf::Mouse::getPosition(mWindow));
+			switch (event.mouseButton.button)
+			{
+			case sf::Mouse::Left:
+				addPlayer(position);
+				break;
+			case sf::Mouse::Right:
+				if (isTile)
+					addBrick(position);
+				else
+					addGoomba(position);
+				break;
+			default: break;
+			}
+			break;
+		}
 	case sf::Event::KeyPressed:
 		switch (event.key.code)
 		{
 		case sf::Keyboard::Num1:
-			mPlayer->destroy();
+			mPlayer->applyTransformation();
 			break;
 		case sf::Keyboard::Num2:
-			mPlayer = mPlayerFactory.spawn();
+			mPlayer->applyTransformation(Type::SmallPlayer);
 			break;
-		case sf::Keyboard::P:
-
+		case sf::Keyboard::B:
+			if(isTile)
+				isTile = !isTile;
+			else
+				isTile = !isTile;
 			break;
 		default:break;
 		}
@@ -81,8 +101,6 @@ void World::handleEvent(const sf::Event& event)
 
 void World::update(sf::Time dt)
 {
-	updateCamera();
-
 	mPlayerController.handleRealtimeInput(mCommandQueue);
 
 	destroyEntitiesOutsideView();
@@ -92,18 +110,20 @@ void World::update(sf::Time dt)
 	while (!mCommandQueue.isEmpty())
 		mSceneGraph.onCommand(mCommandQueue.pop());
 
-	// Check if Player Dead
-	if (mPlayerFactory.update(dt))
-		return;
-
 	mSceneGraph.removeWrecks();
 
-	if (mPlayer == nullptr || mPlayer->isDestroyed())
+	handleCollision();
+
+	if (mPlayer && !mPlayer->isDestroyed())
 	{
-		mPlayer = mPlayerFactory.spawn();
+		if (mPlayer->paused())
+		{
+			mPlayer->update(dt, mCommandQueue);
+			return;
+		}
 	}
 
-	handleCollision();
+	updateCamera();
 
 	mSceneGraph.update(dt, mCommandQueue);
 }
@@ -136,7 +156,7 @@ void World::loadTextures()
 
 void World::buildScene()
 {
-	if (!mTileMap.loadFromFile("Media/Maps/test007.tmx"))
+	if (!mTileMap.loadFromFile("Media/Maps/test006.tmx"))
 		throw std::runtime_error("can't load level");
 
 	mWorldBounds.left = mWorldBounds.top = 0.f;
@@ -151,8 +171,7 @@ void World::buildScene()
 		if (object.name == "player")
 		{
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-			mPlayerFactory.setSceneNode(&mSceneGraph);
-			mPlayer = mPlayerFactory.create(position);
+			addPlayer(position);
 		}
 
 		if (object.name == "solid")
@@ -165,23 +184,41 @@ void World::buildScene()
 
 		if (object.name == "brick")
 		{
-			auto brick(std::make_unique<Brick>(Type::Brick, mTextures));
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-			brick->setPosition(position);
-			mSceneGraph.attachChild(std::move(brick));
+			addBrick(position);
 		}
 
 		if (object.name == "goomba")
 		{
-			auto goomba(std::make_unique<Goomba>(Type::Goomba, mTextures));
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-			goomba->setPosition(position);
-			goomba->setVelocity(40.f, 0.f);
-			mSceneGraph.attachChild(std::move(goomba));
+			addGoomba(position);
 		}
 	}
 
 	createParticle();
+}
+
+void World::addPlayer(sf::Vector2f position)
+{
+	auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
+	mPlayer = player.get();
+	mPlayer->setPosition(position);
+	mSceneGraph.attachChild(std::move(player));
+}
+
+void World::addGoomba(sf::Vector2f position)
+{
+	auto goomba(std::make_unique<Goomba>(Type::Goomba, mTextures));
+	goomba->setPosition(position);
+	goomba->setVelocity(40.f, 0.f);
+	mSceneGraph.attachChild(std::move(goomba));
+}
+
+void World::addBrick(sf::Vector2f position)
+{
+	auto brick(std::make_unique<Brick>(Type::Brick, mTextures));
+	brick->setPosition(position);
+	mSceneGraph.attachChild(std::move(brick));
 }
 
 sf::FloatRect World::getViewBounds() const

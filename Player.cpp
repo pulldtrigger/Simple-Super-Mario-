@@ -12,40 +12,46 @@
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
-	, mSprite(textures.get(Textures::Player), (type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16))
+	, mSprite(textures.get(Textures::Player), sf::IntRect(80, 32, 16, 16))
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
 	, mElapsedTime(sf::Time::Zero)
-	, mJumpRect((type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0, 16, 32) : sf::IntRect(80 + (16 * 5), 32, 16, 16))
-	, mDirectionRect((type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 4), 0, 16, 32) : sf::IntRect(80 + (16 * 4), 32, 16, 16))
-	, mIdleRect((type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16))
+	, mJumpRect(sf::IntRect(80 + (16 * 5), 32, 16, 16))
+	, mDirectionRect(sf::IntRect(80 + (16 * 4), 32, 16, 16))
+	, mIdleRect(sf::IntRect(80, 32, 16, 16))
 	, mDirectionTime(sf::Time::Zero)
 	, mCurrentDirection(Right | Up)
 	, mPreviousDirection(Right | Up)
 	, isChangingDirection(false)
 	, isRightFace(true)
-	, mAbilities((type == Type::BigPlayer) ? Abilities::Regular : Abilities::Fireable | Abilities::Invincible/*Abilities::Regular*/)
+	, mAbilities(Regular)
 	, mFireCommand()
 	, mIsFiring(false)
 	, mBullets()
+	, mTimer(sf::Time::Zero)
+	, mAffects(Blinking)
+	, mScaleToggle(true)
 	, mIsDying(false)
-	//, mTimer(sf::Time::Zero)
-	//, mCanSpawn(true)
-	//, mBlinkEffect(true)
+	, mIsSmallPlayerTransformed(false)
+{
+	setup();
+
+	mFireCommand.category = Category::SceneMainLayer;
+	mFireCommand.action = std::bind(&Player::createProjectile, this, std::placeholders::_1, std::cref(textures));
+}
+
+void Player::setup()
 {
 	auto bounds = mSprite.getLocalBounds();
-	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+	mSprite.setOrigin(bounds.width / 2.f, bounds.height);
 
 	mFootShape.setFillColor(sf::Color::Transparent);
 	mFootShape.setOutlineColor(sf::Color::White);
 	mFootShape.setSize({ bounds.width, 2.f });
-	mFootShape.setPosition(0.f, bounds.height / 2.f);
+	mFootShape.setPosition(0.f, 0.f);
 	mFootShape.setOutlineThickness(-0.5f);
 	bounds = mFootShape.getLocalBounds();
 	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
-
-	mFireCommand.category = Category::SceneMainLayer;
-	mFireCommand.action = std::bind(&Player::createProjectile, this, std::placeholders::_1, std::cref(textures));
 }
 
 unsigned int Player::getCategory() const
@@ -58,14 +64,93 @@ bool Player::isMarkedForRemoval() const
 	return mIsMarkedForRemoval;
 }
 
-void Player::setMarkToRemove()
+bool Player::isDying() const
 {
-	mIsMarkedForRemoval = true;
+	return mIsSmallPlayerTransformed || mIsDying;
 }
 
-void Player::playerHitEffect()
+bool Player::paused()
 {
-	mSprite.setColor({ 255u, 255u, 255u, static_cast<sf::Uint8>(utility::random(1, 255)) });
+	return (mAffects & Pause) == Pause;
+}
+
+void Player::applyTransformation(Type type, unsigned int affector)
+{
+	mType = type;
+	mJumpRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0, 16, 32) : sf::IntRect(80 + (16 * 5), 32, 16, 16);
+	mDirectionRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 4), 0, 16, 32) : sf::IntRect(80 + (16 * 4), 32, 16, 16);
+	mIdleRect = (type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16);
+	mSprite.setTextureRect(mIdleRect);
+	setup();
+
+	if (!(mAffects & (Transforming | Death)))
+		mAffects = affector;
+}
+
+bool Player::scalingEffect(sf::Time dt, sf::Vector2f targetScale)
+{
+	auto resultScale = mSprite.getScale();
+
+	auto speed = 0.f;
+	if (mAffects & Death)
+		speed = 48.f;
+	else
+		speed = 32.f;
+
+	resultScale += (targetScale - resultScale) * speed * dt.asSeconds();
+
+	mSprite.setScale(resultScale);
+
+	return utility::closeEnough(targetScale.y, resultScale.y, 0.0001f);
+}
+
+void Player::playEffects(sf::Time dt)
+{
+	if (mAffects & Nothing) return;
+
+	if (mAffects & Transforming)
+	{
+		if (mScaleToggle)
+		{
+			if (scalingEffect(dt, { 1.f, 0.5f }))
+				mScaleToggle = !mScaleToggle;
+		}
+		else
+		{
+			if (scalingEffect(dt, { 1.f, 1.f }))
+				mScaleToggle = !mScaleToggle;
+		}
+	}
+
+	if (mAffects & Blinking)
+	{
+		mSprite.setColor({ 255u, 255u, 255u, static_cast<sf::Uint8>(utility::random(1, 255)) });
+	}
+
+	mTimer += dt;
+	if (mAffects & Death)
+	{
+		if (mTimer <= sf::seconds(1.5f)) return;
+		applyTransformation(Type::SmallPlayer);
+		mAffects = Blinking;
+		mTimer = sf::Time::Zero;
+		return;
+	}
+
+	if (mTimer <= sf::seconds(1.f)) return;
+
+
+	if (mAffects & Transforming)
+		mSprite.setScale({ 1.f,  1.f });
+
+	if (mAffects & Blinking)
+		mSprite.setColor(sf::Color::White);
+
+	mScaleToggle = true;
+
+	mAffects = Nothing;
+	if (mIsSmallPlayerTransformed) mIsSmallPlayerTransformed = false;
+	mTimer = sf::Time::Zero;
 }
 
 sf::FloatRect Player::getBoundingRect() const
@@ -77,27 +162,12 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	static const sf::Vector2f Gravity(0.f, 25.f);
 
-	if(isDestroyed() && mType == Type::SmallPlayer)
+	if(isDestroyed())
 	{
 		std::cout << "Mario died\n";
 		mIsMarkedForRemoval = true;
 		return;
 	}
-
-
-	//if (mCanSpawn && mTimer > sf::seconds(0.75f))
-	//{
-	//	mCanSpawn = false;
-	//	mTimer = sf::Time::Zero;
-	//	mSprite.setColor(sf::Color::White);
-	//	mBlinkEffect = true;
-	//}
-	//else if (mCanSpawn)
-	//{
-	//	//playerHitEffect();
-	//	mBlinkEffect = !mBlinkEffect;
-	//	mTimer += dt;
-	//}
 
 	accelerate(Gravity);
 
@@ -107,6 +177,7 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 	{
 		auto vel = getVelocity();
 		vel.x *= 0.8f;
+		if (mIsSmallPlayerTransformed) vel.y = 0.f;
 		setVelocity(vel);
 
 		auto displacement = static_cast<int>(vel.x * dt.asSeconds());
@@ -121,6 +192,7 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 			mCurrentDirection &= ~(Right);
 			mCurrentDirection |= Left;
 		}
+
 	}
 	break;
 	case Behavors::Ground:
@@ -162,11 +234,14 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 		auto vel = getVelocity();
 		vel.x = 0.f;
 		setVelocity(vel);
-		playerHitEffect();
 	}
 	break;
 	default:break;
 	}
+
+	playEffects(dt);
+
+	if (mAffects & Death) return;
 
 	updateDirection(dt);
 
@@ -177,14 +252,11 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 	checkProjectileLaunch(dt, commands);
 
 	Entity::updateCurrent(dt, commands);
-
-	//std::cout << getVelocity().y << " " << mFootSenseCount<< '\n';
 }
 
 void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
-	//if (mBlinkEffect)
-		target.draw(mSprite, states);
+	target.draw(mSprite, states);
 #ifdef Debug
 	target.draw(mFootShape, states);
 #endif // Debug
@@ -213,11 +285,6 @@ unsigned int Player::getFootSenseCount() const
 Type Player::getType() const
 {
 	return mType;
-}
-
-bool Player::isDying() const
-{
-	return mIsDying;
 }
 
 void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
@@ -249,27 +316,31 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 				mCurrentDirection |= Idle;
 			}
 			break;
-		case Type::Goomba:	
+		case Type::Goomba:
+			if (other->isDying()) break;
+			if (mIsSmallPlayerTransformed) return;
+			if (mAbilities & Abilities::Invincible) break;
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 			{
-				if (other->isDying()) break;
-				if (mAbilities & Abilities::Invincible) break;
-				if (manifold.x != 0)
+				if (manifold.y != 0) // it worked here! player pounce if collide on top of enemy
 				{
 					if (mType == Type::BigPlayer)
 					{
-						destroy();
+						mAffects = Death | Pause | Transforming;
+						mIsSmallPlayerTransformed = true;
+						mAbilities = Regular;
 					}
 					else
 					{
 						move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 						auto vel = getVelocity();
-						vel.y = -475.f; // jump force
+						vel.y = -8.f;//-475.f; // jump force
 						vel.x = 0.f;
 						setVelocity(vel);
-						setScale(1.f, -1.f);
+						mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
 						mBehavors = Dying;
+						mAffects = Pause;
 						mIsDying = true;
 					}
 				}
@@ -296,22 +367,26 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			break;
 		case Type::Goomba:
 			if (other->isDying()) break;
+			if (mIsSmallPlayerTransformed) return;
 			if (mAbilities & Abilities::Invincible) break;
 			if (manifold.x != 0)
 			{
 				if (mType == Type::BigPlayer)
 				{
-					destroy();
+					mAffects = Death | Pause | Transforming | Blinking;
+					mIsSmallPlayerTransformed = true;
+					mAbilities = Regular;
 				}
 				else
 				{
 					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 					auto vel = getVelocity();
-					vel.y = -475.f; // jump force
+					vel.y = -237.f;//-475.f; // jump force
 					vel.x = 0.f;
 					setVelocity(vel);
-					setScale(1.f, -1.f);
+					mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
 					mBehavors = Dying;
+					mAffects = Pause;
 					mIsDying = true;
 				}
 			}
@@ -363,13 +438,14 @@ void Player::updateDirection(sf::Time dt)
 
 void Player::updateAnimation(sf::Time dt)
 {
+	if (mIsDying) return;
 	if (mCurrentDirection & (Idle | Up)) return;
 
 	// changing direction anim
 	if (isChangingDirection && mDirectionTime <= sf::Time::Zero)
 	{
 		isChangingDirection = false;
-		mDirectionTime += sf::seconds(0.2f);
+		mDirectionTime += sf::seconds(0.15f);
 		mSprite.setTextureRect(mIdleRect);
 	}
 	else if (isChangingDirection)

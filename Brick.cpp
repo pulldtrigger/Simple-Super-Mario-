@@ -105,6 +105,7 @@ void Brick::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	switch (other->getType())
 	{
 	case Type::SmallPlayer:
+		if (other->isDying()) break;
 		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
 		{
 			mIsHitBySmallPlayer = true;

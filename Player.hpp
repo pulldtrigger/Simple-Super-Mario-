@@ -35,14 +35,24 @@ private:
 		Up		= 1 << 3,
 	};
 
+	enum Affects
+	{
+		Nothing			= 1 << 0,
+		Pause			= 1 << 1,
+		Blinking		= 1 << 2,
+		Transforming	= 1 << 3,
+		Death			= 1 << 4,
+	};
+
 
 public:
 	explicit Player(Type type, const TextureHolder& textures);
 
 	void applyForce(sf::Vector2f velocity);
 	void fire();
-	void playerHitEffect();
-	void setMarkToRemove();
+	bool paused();
+	void applyTransformation(Type type = Type::BigPlayer, unsigned int affector = Transforming);
+
 
 private:
 	void drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const override;
@@ -59,7 +69,6 @@ private:
 	unsigned int getFootSenseCount() const override;
 	Type getType() const override;
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
-	bool isDying() const override;
 
 	void updateAnimation(sf::Time dt);
 	void updateDirection(sf::Time dt);
@@ -67,6 +76,12 @@ private:
 	void checkProjectiles();
 	void checkProjectileLaunch(sf::Time dt, CommandQueue& commands);
 	void createProjectile(SceneNode& node, const TextureHolder& textures);
+
+	void setup();
+
+	bool scalingEffect(sf::Time dt, sf::Vector2f targetScale);
+	void playEffects(sf::Time dt);
+	bool isDying() const override;
 
 
 private:
@@ -93,8 +108,10 @@ private:
 	bool mIsFiring;
 	std::vector<Projectile*> mBullets;
 
-	bool mIsDying; // TODO: remove it
-	//sf::Time mTimer;
-	//bool mCanSpawn;
-	//bool mBlinkEffect;
+	sf::Time mTimer;
+	unsigned int mAffects;
+	bool mScaleToggle;
+
+	bool mIsDying;
+	bool mIsSmallPlayerTransformed;
 };
