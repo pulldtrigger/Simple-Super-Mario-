@@ -53,6 +53,9 @@ public:
 	virtual unsigned int getAbilities() const;
 	virtual bool isDying() const;
 
+	virtual void setVelocity(float vx, float vy) {};
+	virtual void setVelocity(sf::Vector2f velocity) {};
+	virtual sf::Vector2f getVelocity() const { return{}; };
 
 private:
 	virtual void updateCurrent(sf::Time dt, CommandQueue& commands);

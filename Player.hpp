@@ -14,8 +14,9 @@ public:
 	{
 		None		= 0,
 		Regular		= 1 << 0,
-		Fireable	= 1 << 1,
-		Invincible	= 1 << 2
+		Transform	= 1 << 1,
+		Fireable	= 1 << 2,
+		Invincible	= 1 << 3,
 	};
 
 
@@ -37,11 +38,11 @@ private:
 
 	enum Affects
 	{
-		Nothing			= 1 << 0,
-		Pause			= 1 << 1,
-		Blinking		= 1 << 2,
-		Transforming	= 1 << 3,
-		Death			= 1 << 4,
+		Nothing		= 1 << 0,
+		Pause		= 1 << 1,
+		Blinking	= 1 << 2,
+		Scaling		= 1 << 3,
+		Death		= 1 << 4, //TODO: make it ORs
 	};
 
 
@@ -51,7 +52,10 @@ public:
 	void applyForce(sf::Vector2f velocity);
 	void fire();
 	bool paused();
-	void applyTransformation(Type type = Type::BigPlayer, unsigned int affector = Transforming);
+
+	// TODO: need to be more generic and
+	void applyTransformation(Type type = Type::BigPlayer, unsigned int affector = Scaling);
+	void applyFireable(Type type = Type::BigPlayer, unsigned int ability = Fireable);
 
 
 private:

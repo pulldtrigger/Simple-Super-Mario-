@@ -7,7 +7,6 @@
 #include "Player.hpp"
 #include "CommandQueue.hpp"
 #include "PlayerController.hpp"
-//#include "PlayerFactory.hpp"
 
 #include <SFML/Graphics/View.hpp>
 
@@ -54,8 +53,6 @@ private:
 	SceneNode mSceneGraph;
 	CommandQueue mCommandQueue;
 	std::vector<SceneNode*> mBodies;
-	Player* mPlayer;
+	std::vector<Player*> mPlayer;
 	PlayerController mPlayerController;
-	//PlayerFactory mPlayerFactory;
-
 };

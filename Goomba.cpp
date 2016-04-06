@@ -20,12 +20,13 @@ Goomba::Goomba(Type type, const TextureHolder& textures)
 	, mIsCrushed(false)
 {
 	auto bounds = mSprite.getLocalBounds();
-	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+	mSprite.setOrigin(bounds.width / 2.f, bounds.height);
 
 	mFootShape.setFillColor(sf::Color::Transparent);
 	mFootShape.setOutlineColor(sf::Color::White);
 	mFootShape.setSize({ bounds.width, 2.f });
-	mFootShape.setPosition(0.f, bounds.height / 2.f);
+
+	mFootShape.setPosition(0.f, 0.f);
 	mFootShape.setOutlineThickness(-0.5f);
 	bounds = mFootShape.getLocalBounds();
 	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
@@ -221,6 +222,12 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 					mIsDying = true;
 					mIsCrushed = true;
 					mBehavors = Dying;
+
+					// it works here, at last player pouce if collide with goomba from top
+					// NOTE: for some unknown reasons, it doesn't work if i implemented this on player side
+					auto vel = other->getVelocity();
+					vel.y = -vel.y;//-380.f;
+					other->setVelocity(vel);
 				}
 			}
 

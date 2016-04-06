@@ -46,7 +46,7 @@ World::World(sf::RenderWindow& window)
 	, mSceneGraph(Category::SceneMainLayer)
 	, mCommandQueue()
 	, mBodies()
-	, mPlayer(nullptr)
+	, mPlayer()
 	, mPlayerController()
 {
 	loadTextures();
@@ -80,10 +80,20 @@ void World::handleEvent(const sf::Event& event)
 		switch (event.key.code)
 		{
 		case sf::Keyboard::Num1:
-			mPlayer->applyTransformation();
+			if (!mPlayer.empty())
+				mPlayer.back()->applyTransformation();
 			break;
 		case sf::Keyboard::Num2:
-			mPlayer->applyTransformation(Type::SmallPlayer);
+			if (!mPlayer.empty())
+				mPlayer.back()->applyTransformation(Type::SmallPlayer);
+			break;
+		case sf::Keyboard::Num3:
+			if (!mPlayer.empty())
+				mPlayer.back()->applyFireable();
+			break;
+		case sf::Keyboard::Num4:
+			if (!mPlayer.empty())
+				mPlayer.back()->applyFireable(Type::SmallPlayer);
 			break;
 		case sf::Keyboard::B:
 			if(isTile)
@@ -101,6 +111,11 @@ void World::handleEvent(const sf::Event& event)
 
 void World::update(sf::Time dt)
 {
+	mPlayer.erase( // no more sorrow
+		std::remove_if(mPlayer.begin(), mPlayer.end(), 
+			std::mem_fn(&Projectile::isDestroyed)), 
+		mPlayer.end());
+
 	mPlayerController.handleRealtimeInput(mCommandQueue);
 
 	destroyEntitiesOutsideView();
@@ -114,11 +129,11 @@ void World::update(sf::Time dt)
 
 	handleCollision();
 
-	if (mPlayer && !mPlayer->isDestroyed())
+	if (!mPlayer.empty())
 	{
-		if (mPlayer->paused())
+		if (mPlayer.back()->paused())
 		{
-			mPlayer->update(dt, mCommandQueue);
+			mPlayer.back()->update(dt, mCommandQueue);
 			return;
 		}
 	}
@@ -200,17 +215,20 @@ void World::buildScene()
 
 void World::addPlayer(sf::Vector2f position)
 {
-	auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
-	mPlayer = player.get();
-	mPlayer->setPosition(position);
-	mSceneGraph.attachChild(std::move(player));
+	if (mPlayer.empty())
+	{
+		auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
+		mPlayer.emplace_back(player.get());
+		mPlayer.back()->setPosition(position);
+		mSceneGraph.attachChild(std::move(player));
+	}
 }
 
 void World::addGoomba(sf::Vector2f position)
 {
 	auto goomba(std::make_unique<Goomba>(Type::Goomba, mTextures));
 	goomba->setPosition(position);
-	goomba->setVelocity(40.f, 0.f);
+	goomba->setVelocity(-40.f, 0.f);
 	mSceneGraph.attachChild(std::move(goomba));
 }
 
@@ -293,11 +311,11 @@ void World::handleCollision()
 
 void World::updateCamera()
 {
-	if (mPlayer && !mPlayer->isDestroyed())
+	if (!mPlayer.empty())
 	{
-		if (mPlayer->getWorldPosition().x > mWorldView.getSize().x / 2.f
-			&& mPlayer->getWorldPosition().x < mWorldBounds.width - mWorldView.getSize().x / 2.f)
-			mWorldView.setCenter(mPlayer->getWorldPosition().x, mWorldView.getSize().y / 2.f);
+		if (mPlayer.back()->getWorldPosition().x > mWorldView.getSize().x / 2.f
+			&& mPlayer.back()->getWorldPosition().x < mWorldBounds.width - mWorldView.getSize().x / 2.f)
+			mWorldView.setCenter(mPlayer.back()->getWorldPosition().x, mWorldView.getSize().y / 2.f);
 	}
 }
 

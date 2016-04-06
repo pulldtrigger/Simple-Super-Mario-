@@ -9,6 +9,7 @@
 
 #define Debug
 
+
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
@@ -50,8 +51,8 @@ void Player::setup()
 	mFootShape.setSize({ bounds.width, 2.f });
 	mFootShape.setPosition(0.f, 0.f);
 	mFootShape.setOutlineThickness(-0.5f);
-	bounds = mFootShape.getLocalBounds();
-	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+	auto footBounds = mFootShape.getLocalBounds();
+	mFootShape.setOrigin(footBounds.width / 2.f, footBounds.height / 2.f);
 }
 
 unsigned int Player::getCategory() const
@@ -74,6 +75,17 @@ bool Player::paused()
 	return (mAffects & Pause) == Pause;
 }
 
+void Player::applyFireable(Type type = Type::BigPlayer, unsigned int ability)
+{
+	mAbilities |= ability;
+	mJumpRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0 + 96, 16, 32) : sf::IntRect(80 + (16 * 5), 32 + 96, 16, 16);
+	mDirectionRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 4), 0 + 96, 16, 32) : sf::IntRect(80 + (16 * 4), 32 + 96, 16, 16);
+	mIdleRect = (type == Type::BigPlayer) ? sf::IntRect(80, 0 + 96, 16, 32) : sf::IntRect(80, 32 + 96, 16, 16);
+	mSprite.setTextureRect(mIdleRect);
+	if (mType != type)
+		setup();
+}
+
 void Player::applyTransformation(Type type, unsigned int affector)
 {
 	mType = type;
@@ -83,7 +95,7 @@ void Player::applyTransformation(Type type, unsigned int affector)
 	mSprite.setTextureRect(mIdleRect);
 	setup();
 
-	if (!(mAffects & (Transforming | Death)))
+	if (!(mAffects & (Scaling | Death)))
 		mAffects = affector;
 }
 
@@ -106,9 +118,10 @@ bool Player::scalingEffect(sf::Time dt, sf::Vector2f targetScale)
 
 void Player::playEffects(sf::Time dt)
 {
+
 	if (mAffects & Nothing) return;
 
-	if (mAffects & Transforming)
+	if (mAffects & Scaling)
 	{
 		if (mScaleToggle)
 		{
@@ -139,15 +152,13 @@ void Player::playEffects(sf::Time dt)
 
 	if (mTimer <= sf::seconds(1.f)) return;
 
-
-	if (mAffects & Transforming)
+	if (mAffects & Scaling)
 		mSprite.setScale({ 1.f,  1.f });
 
 	if (mAffects & Blinking)
 		mSprite.setColor(sf::Color::White);
 
 	mScaleToggle = true;
-
 	mAffects = Nothing;
 	if (mIsSmallPlayerTransformed) mIsSmallPlayerTransformed = false;
 	mTimer = sf::Time::Zero;
@@ -321,36 +332,34 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			if (mIsSmallPlayerTransformed) return;
 			if (mAbilities & Abilities::Invincible) break;
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (manifold.x != 0)
+			if (manifold.x != 0) // side collision
 			{
-				if (manifold.y != 0) // it worked here! player pounce if collide on top of enemy
+				if (mType == Type::BigPlayer)
 				{
-					if (mType == Type::BigPlayer)
-					{
-						mAffects = Death | Pause | Transforming;
-						mIsSmallPlayerTransformed = true;
-						mAbilities = Regular;
-					}
-					else
-					{
-						move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-						auto vel = getVelocity();
-						vel.y = -8.f;//-475.f; // jump force
-						vel.x = 0.f;
-						setVelocity(vel);
-						mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
-						mBehavors = Dying;
-						mAffects = Pause;
-						mIsDying = true;
-					}
+					mAffects = Death | Pause | Scaling;
+					mIsSmallPlayerTransformed = true;
+					mAbilities = Regular;
+				}
+				else
+				{
+					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+					auto vel = getVelocity();
+					vel.y = -8.f;//-475.f; // jump force
+					vel.x = 0.f;
+					setVelocity(vel);
+					mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
+					mBehavors = Dying;
+					mAffects = Pause;
+					mIsDying = true;
 				}
 			}
-			else
-			{
-				auto vel = getVelocity();
-				vel.y = -vel.y;//-380.f;
-				setVelocity(vel);
-			}
+			// NOTE: for some reasons this doesn't work, better to implement it on goomba side
+			//else //if (manifold.y != 0)
+			//{
+			//	auto vel = getVelocity();
+			//	vel.y = -vel.y;//-380.f;
+			//	setVelocity(vel);
+			//}
 			break;
 		default: break;
 		}
@@ -373,7 +382,7 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			{
 				if (mType == Type::BigPlayer)
 				{
-					mAffects = Death | Pause | Transforming | Blinking;
+					mAffects = Death | Pause | Scaling | Blinking;
 					mIsSmallPlayerTransformed = true;
 					mAbilities = Regular;
 				}
@@ -513,7 +522,7 @@ void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
 {
 	auto projectile(std::make_unique<Projectile>(Type::Projectile, textures));
 
-	const static sf::Vector2f offset(mSprite.getLocalBounds().width / 2.f, 0.f);
+	const sf::Vector2f offset(mSprite.getLocalBounds().width / 2.f, -mSprite.getLocalBounds().height / 2.f);
 
 	auto sign = (isRightFace) ? 1.f: -1.f;
 	projectile->setPosition(getWorldPosition() + offset * sign);

@@ -41,7 +41,7 @@ void Game::processEvents()
 	const static auto initialSize = mWindow.getSize();
 	const static auto videoMode = sf::VideoMode(initialSize.x, initialSize.y);
 
-	sf::Event event;
+	static sf::Event event;
 
 	while (mWindow.pollEvent(event))
 	{
