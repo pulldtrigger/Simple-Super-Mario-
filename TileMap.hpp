@@ -16,17 +16,20 @@ class TileMap final : public sf::Drawable, private sf::NonCopyable
 		explicit Object(const std::string& name,
 			const std::string& type,
 			const sf::Vector2f& position,
-			const sf::Vector2f& size)
+			const sf::Vector2f& size,
+			unsigned int count)
 			: name(name)
 			, type(type)
 			, position(position)
 			, size(size)
+			, count(count)
 		{}
 
 		std::string name;
 		std::string type;
 		sf::Vector2f position;
 		sf::Vector2f size;
+		unsigned int count;
 	};
 
 

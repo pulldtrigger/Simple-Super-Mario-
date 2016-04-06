@@ -6,8 +6,9 @@ enum class Type
 	None,
 	SmallPlayer,
 	BigPlayer,
-	Solid,
+	Block,
 	Brick,
 	Goomba,
 	Projectile,
+	Box,
 };

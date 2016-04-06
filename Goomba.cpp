@@ -147,8 +147,9 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Air:
 		switch (other->getType())
 		{
+		case Type::Box:
 		case Type::Brick:
-		case Type::Solid:
+		case Type::Block:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			mBehavors = Ground;
 			break;
@@ -187,7 +188,8 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Ground:
 		switch (other->getType())
 		{
-		case Type::Solid:
+		case Type::Box:
+		case Type::Block:
 		case Type::Brick:
 		case Type::Goomba:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
@@ -230,12 +232,10 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 					other->setVelocity(vel);
 				}
 			}
-
 			break;
 		default: break;
 		}
 		break;
-
 	case Behavors::Dying:
 		break;
 	default: break;

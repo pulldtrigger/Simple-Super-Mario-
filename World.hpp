@@ -5,6 +5,7 @@
 #include "TileMap.hpp"
 #include "SceneNode.hpp"
 #include "Player.hpp"
+#include "Tile.hpp"
 #include "CommandQueue.hpp"
 #include "PlayerController.hpp"
 
@@ -42,6 +43,8 @@ private:
 	void addPlayer(sf::Vector2f position);
 	void addGoomba(sf::Vector2f position);
 	void addBrick(sf::Vector2f position);
+	void addBox(sf::Vector2f position, Tile::Item item, unsigned int count = 0);
+	void addBlock(sf::Vector2f position, sf::Vector2f size);
 
 
 private:

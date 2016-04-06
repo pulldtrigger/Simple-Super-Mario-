@@ -7,10 +7,22 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 
 
-class Brick final : public Entity
+class Tile final : public Entity
 {
 public:
-	explicit Brick(Type type, const TextureHolder& textures);
+	enum Item
+	{
+		None,
+		Coin,
+		TransformMushroom,
+	};
+
+
+public:
+	explicit Tile(Type type, const TextureHolder& textures, sf::Vector2f size = {});
+
+	void setItem(Item item);
+	void setCoinsCount(unsigned int count);
 
 
 private:
@@ -29,6 +41,7 @@ private:
 	unsigned int getFootSenseCount() const override;
 
 	void checkExplosion(CommandQueue& commands);
+	void updateAnimation(sf::Time dt);
 
 
 private:
@@ -43,4 +56,11 @@ private:
 	sf::Vector2f mJump;
 
 	bool mSpawnedExplosion;
+
+	sf::Time mElapsedTime;
+	sf::IntRect mIdleRect;
+	bool mCanAnimate;
+
+	Item mItem;
+	unsigned int mCoinsCount;
 };

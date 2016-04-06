@@ -9,13 +9,12 @@ namespace Category
 		None			= 0,
 		SceneMainLayer	= 1 << 0,
 		Player			= 1 << 1,
-		Solid			= 1 << 2,
-		Brick			= 1 << 3,
-		Projectile		= 1 << 4,
-		ParticleSystem	= 1 << 5,
-		Goomba			= 1 << 6,
+		Tile			= 1 << 2,
+		Projectile		= 1 << 3,
+		ParticleSystem	= 1 << 4,
+		Goomba			= 1 << 5,
 
 		OutOfWorld = Player | Projectile | Goomba,
-		All = Player | Solid | Brick | Projectile | Goomba,
+		All = Player | Tile | Projectile | Goomba,
 	};
 }

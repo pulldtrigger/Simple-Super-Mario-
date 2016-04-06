@@ -1,6 +1,4 @@
 #include "World.hpp"
-#include "Solid.hpp"
-#include "Brick.hpp"
 #include "ParticleNode.hpp"
 #include "Goomba.hpp"
 
@@ -163,7 +161,7 @@ void World::draw()
 void World::loadTextures()
 {
 	mTextures.load(Textures::Player, "Media/Textures/NES - Super Mario Bros - Mario Luigi.png");
-	mTextures.load(Textures::Brick, "Media/Textures/NES - Super Mario Bros - Tileset.png");
+	mTextures.load(Textures::Tile, "Media/Textures/NES - Super Mario Bros - Tileset.png");
 	mTextures.load(Textures::Particle, "Media/Textures/Particle.png");
 	mTextures.load(Textures::Items, "Media/Textures/NES - Super Mario Bros - Items Objects.png");
 	mTextures.load(Textures::Enemies, "Media/Textures/NES - Super Mario Bros - Enemies.png");
@@ -189,18 +187,31 @@ void World::buildScene()
 			addPlayer(position);
 		}
 
-		if (object.name == "solid")
+		if (object.name == "block")
 		{
-			auto solid(std::make_unique<Solid>(Type::Solid, object.size));
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-			solid->setPosition(position);
-			mSceneGraph.attachChild(std::move(solid));
+			addBlock(position, object.size);
 		}
 
 		if (object.name == "brick")
 		{
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
 			addBrick(position);
+		}
+
+		if (object.name == "box")
+		{
+			if (object.type == "coin")
+			{
+				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+				addBox(position, Tile::Coin, object.count);
+			}
+
+			if (object.type == "transform")
+			{
+				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+				addBox(position, Tile::TransformMushroom);
+			}
 		}
 
 		if (object.name == "goomba")
@@ -234,9 +245,25 @@ void World::addGoomba(sf::Vector2f position)
 
 void World::addBrick(sf::Vector2f position)
 {
-	auto brick(std::make_unique<Brick>(Type::Brick, mTextures));
+	auto brick(std::make_unique<Tile>(Type::Brick, mTextures));
 	brick->setPosition(position);
 	mSceneGraph.attachChild(std::move(brick));
+}
+
+void World::addBlock(sf::Vector2f position, sf::Vector2f size)
+{
+	auto block(std::make_unique<Tile>(Type::Block, mTextures, size));
+	block->setPosition(position);
+	mSceneGraph.attachChild(std::move(block));
+}
+
+void World::addBox(sf::Vector2f position, Tile::Item item, unsigned int count)
+{
+	auto box(std::make_unique<Tile>(Type::Box, mTextures));
+	box->setPosition(position);
+	box->setItem(item);
+	box->setCoinsCount(count);
+	mSceneGraph.attachChild(std::move(box));
 }
 
 sf::FloatRect World::getViewBounds() const

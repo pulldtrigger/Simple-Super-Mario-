@@ -11,7 +11,7 @@ namespace Textures
 	enum ID
 	{
 		Player,
-		Brick,
+		Tile,
 		Particle,
 		Items,
 		Enemies,

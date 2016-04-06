@@ -163,3 +163,16 @@ bool SceneNode::isDying() const
 {
 	return false;
 }
+
+void SceneNode::setVelocity(float vx, float vy) 
+{
+}
+
+void SceneNode::setVelocity(sf::Vector2f velocity) 
+{
+}
+
+sf::Vector2f SceneNode::getVelocity() const
+{ 
+	return{};
+}

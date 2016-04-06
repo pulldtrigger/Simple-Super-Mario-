@@ -75,7 +75,7 @@ bool Player::paused()
 	return (mAffects & Pause) == Pause;
 }
 
-void Player::applyFireable(Type type = Type::BigPlayer, unsigned int ability)
+void Player::applyFireable(Type type, unsigned int ability)
 {
 	mAbilities |= ability;
 	mJumpRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0 + 96, 16, 32) : sf::IntRect(80 + (16 * 5), 32 + 96, 16, 16);
@@ -305,8 +305,9 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Air:
 		switch (other->getType())
 		{
+		case Type::Box:
 		case Type::Brick:
-		case Type::Solid:
+		case Type::Block:
 			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
 			{
 				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
@@ -368,8 +369,9 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Ground:
 		switch (other->getType())
 		{
-		case Type::Solid:
+		case Type::Block:
 		case Type::Brick:
+		case Type::Box:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 				setVelocity({}); //we hit a wall so stop

@@ -104,7 +104,11 @@ bool TileMap::loadFromFile(const std::string& filename)
 			size.x = objectNode.attribute("width").as_float();
 			size.y = objectNode.attribute("height").as_float();
 
-			mObjects.emplace_back(name, type, position, size);
+			auto propertisNode = objectNode.child("properties");
+			auto propertyNode = propertisNode.child("property");
+			unsigned int count = propertyNode.attribute("value").as_uint();
+
+			mObjects.emplace_back(name, type, position, size, count);
 		}
 	}
 	return true;
