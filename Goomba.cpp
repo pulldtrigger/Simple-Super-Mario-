@@ -73,13 +73,14 @@ void Goomba::updateCurrent(sf::Time dt, CommandQueue& commands)
 		return;
 	}
 
-	accelerate(Gravity);
+	//accelerate(Gravity);
 
 	switch (mBehavors)
 	{
 	case Behavors::Air:
 	{
 		// just fall
+		accelerate(Gravity);
 	}
 	break;
 	case Behavors::Ground:
@@ -142,12 +143,17 @@ Type Goomba::getType() const
 
 void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
+	const static sf::IntRect crushed(16 * 2, 16, 16, 16);
+
 	switch (mBehavors)
 	{
 	case Behavors::Air:
 		switch (other->getType())
 		{
-		case Type::Box:
+		case Type::SolidBox:
+		case Type::CoinsBox:
+		case Type::SoloCoinBox:
+		case Type::TransformBox:
 		case Type::Brick:
 		case Type::Block:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
@@ -160,7 +166,7 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		case Type::SmallPlayer:
 		case Type::BigPlayer:
 			if (other->isDying()) break;
-
+			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (other->getAbilities() & Player::Invincible)
 			{
 				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
@@ -168,9 +174,6 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			}
 			else
 			{
-				const static sf::IntRect crushed(16 * 2, 16, 16, 16);
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-
 				if (manifold.y != 0)
 				{
 					mSprite.setTextureRect(crushed);
@@ -188,7 +191,10 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Ground:
 		switch (other->getType())
 		{
-		case Type::Box:
+		case Type::SolidBox:
+		case Type::CoinsBox:
+		case Type::SoloCoinBox:
+		case Type::TransformBox:
 		case Type::Block:
 		case Type::Brick:
 		case Type::Goomba:
@@ -207,17 +213,13 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		case Type::SmallPlayer:
 		case Type::BigPlayer:
 			if (other->isDying()) break;
-
+			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (other->getAbilities() & Player::Invincible)
 			{
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 				die();
 			}
 			else
 			{
-				const static sf::IntRect crushed(16 * 2, 16, 16, 16);
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-
 				if (manifold.y != 0)
 				{
 					mSprite.setTextureRect(crushed);

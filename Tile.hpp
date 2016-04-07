@@ -2,6 +2,7 @@
 
 #include "Entity.hpp"
 #include "ResourceIdentifiers.hpp"
+#include "Command.hpp"
 
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
@@ -10,18 +11,8 @@
 class Tile final : public Entity
 {
 public:
-	enum Item
-	{
-		None,
-		Coin,
-		TransformMushroom,
-	};
-
-
-public:
 	explicit Tile(Type type, const TextureHolder& textures, sf::Vector2f size = {});
 
-	void setItem(Item item);
 	void setCoinsCount(unsigned int count);
 
 
@@ -34,7 +25,12 @@ private:
 	unsigned int getCategory() const override;
 
 	Type getType() const override;
-	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
+	void resolve(const sf::Vector3f& manifold, SceneNode* other) override;
+	void resolveBrick(const sf::Vector3f& manifold, SceneNode* other);
+	void resolveCoinsBox(const sf::Vector3f& manifold, SceneNode* other);
+	void resolveSoloCoinBox(const sf::Vector3f& manifold, SceneNode* other);
+	void resolveTransformBox(const sf::Vector3f& manifold, SceneNode* other);
+
 	sf::FloatRect getFootSensorBoundingRect() const override;
 
 	void setFootSenseCount(unsigned int count) override;
@@ -42,6 +38,9 @@ private:
 
 	void checkExplosion(CommandQueue& commands);
 	void updateAnimation(sf::Time dt);
+	void setup(sf::Vector2f size);
+
+	void createItem(SceneNode& node, const TextureHolder& textures, Type type);
 
 
 private:
@@ -61,6 +60,9 @@ private:
 	sf::IntRect mIdleRect;
 	bool mCanAnimate;
 
-	Item mItem;
 	unsigned int mCoinsCount;
+
+	Command mCoinCommand;
+	Command mTransformCommand;
+	bool mIsFired;
 };

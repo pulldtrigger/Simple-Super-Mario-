@@ -2,6 +2,7 @@
 #include "ResourceHolder.hpp"
 #include "CommandQueue.hpp"
 #include "Utility.hpp"
+#include "DebugText.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <algorithm>
@@ -37,7 +38,7 @@ Player::Player(Type type, const TextureHolder& textures)
 {
 	setup();
 
-	mFireCommand.category = Category::SceneMainLayer;
+	mFireCommand.category = Category::BackLayer;
 	mFireCommand.action = std::bind(&Player::createProjectile, this, std::placeholders::_1, std::cref(textures));
 }
 
@@ -187,18 +188,16 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 	case Behavors::Air:
 	{
 		auto vel = getVelocity();
-		vel.x *= 0.8f;
+		vel.x *= 0.7f;//0.6f;//0.8f;
 		if (mIsSmallPlayerTransformed) vel.y = 0.f;
 		setVelocity(vel);
 
-		auto displacement = static_cast<int>(vel.x * dt.asSeconds());
-
-		if (displacement > 0)
+		if (vel.x > 0)
 		{
 			mCurrentDirection &= ~(Left);
 			mCurrentDirection |= Right;
 		}
-		else if (displacement < 0)
+		else
 		{
 			mCurrentDirection &= ~(Right);
 			mCurrentDirection |= Left;
@@ -210,7 +209,7 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 	{
 		auto vel = getVelocity();
 		if (vel.y > 0.f) vel.y = 0.f;
-		vel.x *= 0.83f;
+		vel.x *= 0.8f;
 		setVelocity(vel);
 
 		auto displacement = static_cast<int>(vel.x * dt.asSeconds());
@@ -263,6 +262,9 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 	checkProjectileLaunch(dt, commands);
 
 	Entity::updateCurrent(dt, commands);
+
+	debug << "X: " + std::to_string(getWorldPosition().x) + "\n" +
+			 "Y: " + std::to_string(getWorldPosition().y);
 }
 
 void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
@@ -305,9 +307,13 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Air:
 		switch (other->getType())
 		{
-		case Type::Box:
+		// Tiles
 		case Type::Brick:
 		case Type::Block:
+		case Type::CoinsBox:
+		case Type::SoloCoinBox:
+		case Type::TransformBox:
+		case Type::SolidBox:
 			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
 			{
 				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
@@ -322,12 +328,16 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 					vel.y = -vel.y;
 					setVelocity(vel);
 				}
-
-				mBehavors = Ground;
-				mCurrentDirection &= ~(Up);
-				mCurrentDirection |= Idle;
+				//else //NOTE: it makes player bounces rapidly under Boxes
+				//{
+					mBehavors = Ground;
+					mCurrentDirection &= ~(Up);
+					mCurrentDirection |= Idle;
+				//}
 			}
 			break;
+
+		// Enemies
 		case Type::Goomba:
 			if (other->isDying()) break;
 			if (mIsSmallPlayerTransformed) return;
@@ -357,10 +367,19 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			// NOTE: for some reasons this doesn't work, better to implement it on goomba side
 			//else //if (manifold.y != 0)
 			//{
-			//	auto vel = getVelocity();
-			//	vel.y = -vel.y;//-380.f;
-			//	setVelocity(vel);
+			//	if (manifold.y * manifold.z < 0)
+			//	{
+			//		auto vel = getVelocity();
+			//		vel.y = -vel.y;//-380.f;
+			//		setVelocity(vel);
+			//	}
 			//}
+			break;
+
+		// Items
+		case Type::TransformMushroom:
+			if (mType == Type::SmallPlayer)
+				applyTransformation();
 			break;
 		default: break;
 		}
@@ -369,13 +388,19 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Behavors::Ground:
 		switch (other->getType())
 		{
+		// Tiles
 		case Type::Block:
 		case Type::Brick:
-		case Type::Box:
+		case Type::CoinsBox:
+		case Type::SoloCoinBox:
+		case Type::TransformBox:
+		case Type::SolidBox:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 				setVelocity({}); //we hit a wall so stop
 			break;
+
+		// Enemies
 		case Type::Goomba:
 			if (other->isDying()) break;
 			if (mIsSmallPlayerTransformed) return;
@@ -401,6 +426,12 @@ void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 					mIsDying = true;
 				}
 			}
+			break;
+
+		// Items
+		case Type::TransformMushroom:
+			if (mType == Type::SmallPlayer)
+				applyTransformation();
 			break;
 		default: break;
 		}

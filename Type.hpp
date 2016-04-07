@@ -4,11 +4,24 @@
 enum class Type
 {
 	None,
+	// players types
 	SmallPlayer,
 	BigPlayer,
+
 	Block,
 	Brick,
+
 	Goomba,
 	Projectile,
-	Box,
+
+	// boxes types
+	SoloCoinBox,
+	CoinsBox,
+	TransformBox,
+	SolidBox,
+
+	// Item types
+	StaticCoin,
+	MoveableCoin,
+	TransformMushroom,
 };

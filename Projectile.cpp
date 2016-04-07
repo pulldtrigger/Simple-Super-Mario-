@@ -61,6 +61,10 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
 	switch (other->getType())
 	{
+	case Type::SolidBox:
+	case Type::CoinsBox:
+	case Type::SoloCoinBox:
+	case Type::TransformBox:
 	case Type::Brick:
 	case Type::Block:
 		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);

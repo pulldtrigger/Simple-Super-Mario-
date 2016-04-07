@@ -1,6 +1,9 @@
 #include "World.hpp"
+#include "Tile.hpp"
 #include "ParticleNode.hpp"
 #include "Goomba.hpp"
+#include "Item.hpp"
+#include "DebugText.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -41,7 +44,8 @@ World::World(sf::RenderWindow& window)
 	, mWorldView(window.getDefaultView())
 	, mTileMap()
 	, mTextures()
-	, mSceneGraph(Category::SceneMainLayer)
+	, mSceneGraph()
+	, mSceneLayers()
 	, mCommandQueue()
 	, mBodies()
 	, mPlayer()
@@ -62,7 +66,19 @@ void World::handleEvent(const sf::Event& event)
 			switch (event.mouseButton.button)
 			{
 			case sf::Mouse::Left:
-				addPlayer(position);
+				//addPlayer(position);
+			//{
+			//	auto item(std::make_unique<Item>(Type::MoveableCoin, mTextures));
+			//	item->setPosition(position + sf::Vector2f(0.f, -10.f));
+			//	item->setVelocity(0.f, -475.f);
+			//	mSceneLayers[Back]->attachChild(std::move(item));
+			//}
+			{
+				auto item(std::make_unique<Item>(Type::TransformMushroom, mTextures));
+				item->setPosition(position);
+				item->setVelocity(40.f, -40.f);
+				mSceneLayers[Back]->attachChild(std::move(item));
+			}
 				break;
 			case sf::Mouse::Right:
 				if (isTile)
@@ -139,6 +155,8 @@ void World::update(sf::Time dt)
 	updateCamera();
 
 	mSceneGraph.update(dt, mCommandQueue);
+
+	debug.setPosition(mWorldView.getCenter() - sf::Vector2f(190.f, 100.f));
 }
 
 void World::draw()
@@ -146,7 +164,7 @@ void World::draw()
 	mWindow.setView(mWorldView);
 	mWindow.draw(mTileMap);
 	mWindow.draw(mSceneGraph);
-
+	debug.draw(mWindow);
 #ifdef Debug
 	sf::FloatRect viewBounds(mView.getCenter() - mView.getSize() / 2.f, mView.getSize());
 	sf::RectangleShape debugShape({ viewBounds.width, viewBounds.height });
@@ -169,6 +187,16 @@ void World::loadTextures()
 
 void World::buildScene()
 {
+	for (auto i = 0u; i < LayerCount; ++i)
+	{
+		auto category = (i == Front) ? Category::FrontLayer : Category::BackLayer;
+
+		auto layer(std::make_unique<SceneNode>(category));
+		mSceneLayers[i] = layer.get();
+
+		mSceneGraph.attachChild(std::move(layer));
+	}
+
 	if (!mTileMap.loadFromFile("Media/Maps/test006.tmx"))
 		throw std::runtime_error("can't load level");
 
@@ -204,20 +232,32 @@ void World::buildScene()
 			if (object.type == "coin")
 			{
 				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-				addBox(position, Tile::Coin, object.count);
+				addBox(position, Type::SoloCoinBox);
+			}
+
+			if (object.type == "coins")
+			{
+				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+				addBox(position, Type::CoinsBox, object.count);
 			}
 
 			if (object.type == "transform")
 			{
 				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-				addBox(position, Tile::TransformMushroom);
+				addBox(position, Type::TransformBox);
 			}
 		}
 
 		if (object.name == "goomba")
 		{
-			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y };
 			addGoomba(position);
+		}
+
+		if (object.name == "static_coin")
+		{
+			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+			addItem(Type::StaticCoin, position);
 		}
 	}
 
@@ -231,7 +271,7 @@ void World::addPlayer(sf::Vector2f position)
 		auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
 		mPlayer.emplace_back(player.get());
 		mPlayer.back()->setPosition(position);
-		mSceneGraph.attachChild(std::move(player));
+		mSceneLayers[Front]->attachChild(std::move(player));
 	}
 }
 
@@ -240,30 +280,36 @@ void World::addGoomba(sf::Vector2f position)
 	auto goomba(std::make_unique<Goomba>(Type::Goomba, mTextures));
 	goomba->setPosition(position);
 	goomba->setVelocity(-40.f, 0.f);
-	mSceneGraph.attachChild(std::move(goomba));
+	mSceneLayers[Front]->attachChild(std::move(goomba));
 }
 
 void World::addBrick(sf::Vector2f position)
 {
 	auto brick(std::make_unique<Tile>(Type::Brick, mTextures));
 	brick->setPosition(position);
-	mSceneGraph.attachChild(std::move(brick));
+	mSceneLayers[Back]->attachChild(std::move(brick));
 }
 
 void World::addBlock(sf::Vector2f position, sf::Vector2f size)
 {
 	auto block(std::make_unique<Tile>(Type::Block, mTextures, size));
 	block->setPosition(position);
-	mSceneGraph.attachChild(std::move(block));
+	mSceneLayers[Back]->attachChild(std::move(block));
 }
 
-void World::addBox(sf::Vector2f position, Tile::Item item, unsigned int count)
+void World::addBox(sf::Vector2f position, Type type, unsigned int count)
 {
-	auto box(std::make_unique<Tile>(Type::Box, mTextures));
+	auto box(std::make_unique<Tile>(type, mTextures));
 	box->setPosition(position);
-	box->setItem(item);
 	box->setCoinsCount(count);
-	mSceneGraph.attachChild(std::move(box));
+	mSceneLayers[Front]->attachChild(std::move(box));
+}
+
+void World::addItem(Type type, sf::Vector2f position)
+{
+	auto item(std::make_unique<Item>(type, mTextures));
+	item->setPosition(position);
+	mSceneLayers[Back]->attachChild(std::move(item));
 }
 
 sf::FloatRect World::getViewBounds() const
@@ -353,5 +399,5 @@ void World::createParticle()
 	explosion->addAffector(ForceAffector({ 0.f, 160.f }));//gravity
 	explosion->addAffector(RotateAffector(360.f));
 
-	mSceneGraph.attachChild(std::move(explosion));
+	mSceneLayers[Back]->attachChild(std::move(explosion));
 }

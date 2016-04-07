@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-down" width="200" height="16" tilewidth="16" tileheight="16" nextobjectid="43">
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="200" height="16" tilewidth="16" tileheight="16" nextobjectid="54">
  <tileset firstgid="1" name="NES - Super Mario Bros - Tileset" tilewidth="16" tileheight="16" tilecount="924">
   <image source="../Textures/NES - Super Mario Bros - Tileset.png" width="528" height="448"/>
  </tileset>
@@ -3221,10 +3221,15 @@
   <object id="38" name="block" x="607" y="160" width="16" height="64"/>
   <object id="39" name="block" x="2672" y="64" width="16" height="160"/>
   <object id="40" name="box" type="transform" x="256" y="160" width="16" height="16"/>
-  <object id="41" name="box" type="coin" x="96" y="160" width="16" height="16">
+  <object id="41" name="box" type="coin" x="96" y="160" width="16" height="16"/>
+  <object id="43" name="box" type="coins" x="208" y="160" width="16" height="16">
    <properties>
     <property name="count" value="4"/>
    </properties>
   </object>
+  <object id="45" name="static_coin" x="128" y="200" width="16" height="16"/>
+  <object id="51" name="static_coin" x="144" y="200" width="16" height="16"/>
+  <object id="52" name="static_coin" x="160" y="200" width="16" height="16"/>
+  <object id="53" name="box" type="transform" x="288" y="160" width="16" height="16"/>
  </objectgroup>
 </map>
