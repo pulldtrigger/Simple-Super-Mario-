@@ -141,11 +141,6 @@ sf::FloatRect SceneNode::getFootSensorBoundingRect() const
 	return{};
 }
 
-Type SceneNode::getType() const
-{
-	return Type::None;
-}
-
 void SceneNode::resolve(const sf::Vector3f& manifold, SceneNode* otherType)
 {
 }

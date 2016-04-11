@@ -1,4 +1,4 @@
-#include "Goomba.hpp"
+#include "Enemy.hpp"
 #include "ResourceHolder.hpp"
 #include "CommandQueue.hpp"
 #include "Player.hpp"
@@ -9,7 +9,7 @@
 
 //#define Debug
 
-Goomba::Goomba(Type type, const TextureHolder& textures)
+Enemy::Enemy(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
 	, mSprite(textures.get(Textures::Enemies), sf::IntRect(0, 16, 16, 16))
@@ -32,37 +32,40 @@ Goomba::Goomba(Type type, const TextureHolder& textures)
 	mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 }
 
-unsigned int Goomba::getCategory() const
+unsigned int Enemy::getCategory() const
 {
-	return Category::Goomba;
+	if(mType == Type::Goomba)
+		return Category::Goomba;
+
+	return Category::None;
 }
 
-bool Goomba::isMarkedForRemoval() const
+bool Enemy::isMarkedForRemoval() const
 {
 	return mIsMarkedForRemoval;
 }
 
-sf::FloatRect Goomba::getBoundingRect() const
+sf::FloatRect Enemy::getBoundingRect() const
 {
 	return getWorldTransform().transformRect(mSprite.getGlobalBounds());
 }
 
-void Goomba::die()
+void Enemy::die()
 {
 	auto vel = getVelocity();
-	vel.y = -180.f; // jump force
+	vel.y = -230.f; // jump force
 	setVelocity(vel);
 	setScale(1.f, -1.f);
 	mIsDying = true;
 	mBehavors = Dying;
 }
 
-bool Goomba::isDying() const
+bool Enemy::isDying() const
 {
 	return mIsDying;
 }
 
-void Goomba::updateCurrent(sf::Time dt, CommandQueue& commands)
+void Enemy::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	static const sf::Vector2f Gravity(0.f, 25.f);
 
@@ -73,14 +76,14 @@ void Goomba::updateCurrent(sf::Time dt, CommandQueue& commands)
 		return;
 	}
 
-	//accelerate(Gravity);
+	accelerate(Gravity);
 
 	switch (mBehavors)
 	{
 	case Behavors::Air:
 	{
 		// just fall
-		accelerate(Gravity);
+		//accelerate(Gravity);
 	}
 	break;
 	case Behavors::Ground:
@@ -113,7 +116,7 @@ void Goomba::updateCurrent(sf::Time dt, CommandQueue& commands)
 	}
 }
 
-void Goomba::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
+void Enemy::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
 {
 	target.draw(mSprite, states);
 #ifdef Debug
@@ -121,50 +124,45 @@ void Goomba::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) cons
 #endif // Debug
 }
 
-sf::FloatRect Goomba::getFootSensorBoundingRect() const
+sf::FloatRect Enemy::getFootSensorBoundingRect() const
 {
 	return getWorldTransform().transformRect(mFootShape.getGlobalBounds());
 }
 
-void Goomba::setFootSenseCount(unsigned int count)
+void Enemy::setFootSenseCount(unsigned int count)
 {
 	mFootSenseCount = count;
 }
 
-unsigned int Goomba::getFootSenseCount() const
+unsigned int Enemy::getFootSenseCount() const
 {
 	return mFootSenseCount;
 }
 
-Type Goomba::getType() const
-{
-	return mType;
-}
-
-void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
+void Enemy::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
 	const static sf::IntRect crushed(16 * 2, 16, 16, 16);
 
 	switch (mBehavors)
 	{
 	case Behavors::Air:
-		switch (other->getType())
+		switch (other->getCategory())
 		{
-		case Type::SolidBox:
-		case Type::CoinsBox:
-		case Type::SoloCoinBox:
-		case Type::TransformBox:
-		case Type::Brick:
-		case Type::Block:
+		case Category::SolidBox:
+		case Category::CoinsBox:
+		case Category::SoloCoinBox:
+		case Category::TransformBox:
+		case Category::Brick:
+		case Category::Block:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			mBehavors = Ground;
 			break;
-		case Type::Projectile:
+		case Category::Projectile:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			die();
 			break;
-		case Type::SmallPlayer:
-		case Type::BigPlayer:
+		case Category::SmallPlayer:
+		case Category::BigPlayer:
 			if (other->isDying()) break;
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (other->getAbilities() & Player::Invincible)
@@ -189,15 +187,16 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		break;
 
 	case Behavors::Ground:
-		switch (other->getType())
+		switch (other->getCategory())
 		{
-		case Type::SolidBox:
-		case Type::CoinsBox:
-		case Type::SoloCoinBox:
-		case Type::TransformBox:
-		case Type::Block:
-		case Type::Brick:
-		case Type::Goomba:
+		case Category::SolidBox:
+		case Category::CoinsBox:
+		case Category::SoloCoinBox:
+		case Category::TransformBox:
+		case Category::Block:
+		case Category::Brick:
+		case Category::Goomba:
+		case Category::TransformMushroom:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 			{
@@ -206,12 +205,12 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 				setVelocity(vel);
 			}
 			break;
-		case Type::Projectile:
+		case Category::Projectile:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			die();
 			break;
-		case Type::SmallPlayer:
-		case Type::BigPlayer:
+		case Category::SmallPlayer:
+		case Category::BigPlayer:
 			if (other->isDying()) break;
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (other->getAbilities() & Player::Invincible)
@@ -244,7 +243,7 @@ void Goomba::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	}
 }
 
-void Goomba::updateAnimation(sf::Time dt)
+void Enemy::updateAnimation(sf::Time dt)
 {
 	auto textureRect = mSprite.getTextureRect();
 	const static auto numFrames = 2u;

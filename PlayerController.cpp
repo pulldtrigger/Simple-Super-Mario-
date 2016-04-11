@@ -13,7 +13,7 @@ PlayerController::PlayerController()
 	initializeActions();
 
 	for (auto& pair : mActionBinding)
-		pair.second.category = Category::Player;
+		pair.second.category = Category::BigPlayer | Category::SmallPlayer;
 }
 
 void PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)

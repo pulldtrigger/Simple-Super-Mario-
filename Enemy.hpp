@@ -8,8 +8,17 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 
 
-class Goomba final : public Entity
+class Enemy final : public Entity
 {
+public:
+	enum Type
+	{
+		Goomba,
+		TypeCount
+	};
+
+
+private:
 	enum Behavors
 	{
 		Air,
@@ -19,7 +28,7 @@ class Goomba final : public Entity
 
 
 public:
-	explicit Goomba(Type type, const TextureHolder& textures);
+	explicit Enemy(Type type, const TextureHolder& textures);
 
 
 private:
@@ -34,7 +43,7 @@ private:
 
 	void setFootSenseCount(unsigned int count) override;
 	unsigned int getFootSenseCount() const override;
-	Type getType() const override;
+
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 
 	void die() override;

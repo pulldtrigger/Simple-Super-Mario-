@@ -9,14 +9,31 @@ namespace Category
 		None			= 0,
 		BackLayer		= 1 << 0,
 		FrontLayer		= 1 << 1,
-		Player			= 1 << 2,
-		Tile			= 1 << 3,
-		Projectile		= 1 << 4,
-		ParticleSystem	= 1 << 5,
-		Goomba			= 1 << 6,
-		Item			= 1 << 7,
+		// players types
+		SmallPlayer = 1 << 2,
+		BigPlayer = 1 << 3,
 
-		OutOfWorld = Player | Projectile | Goomba | Item,
-		All = Player | Tile | Projectile | Goomba | Item,
+		ParticleSystem = 1 << 4,
+
+		Projectile = 1 << 5,
+
+		// Tile types
+		Block = 1 << 6,
+		Brick = 1 << 7,
+		SoloCoinBox = 1 << 8,
+		CoinsBox = 1 << 9,
+		TransformBox = 1 << 10,
+		SolidBox = 1 << 11,
+
+		// Item types
+		StaticCoin = 1 << 12,
+		MoveableCoin = 1 << 13,
+		TransformMushroom = 1 << 14,
+
+		Goomba = 1 << 15,
+
+
+		OutOfWorld = SmallPlayer | Projectile | Goomba | BigPlayer | TransformMushroom,
+		All = Block | Brick | SoloCoinBox  | CoinsBox | TransformBox | SolidBox | Projectile | StaticCoin | OutOfWorld,
 	};
 }

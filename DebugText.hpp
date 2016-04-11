@@ -31,9 +31,8 @@ public:
 	template <class T>
 	DebugText &operator<<(const T& obj)
 	{
-		std::stringstream stream;
 		stream << obj;
-		text.setString(stream.str());
+		needUpdate = true;
 		return *this;
 	}
 
@@ -44,6 +43,15 @@ public:
 
 	void draw(sf::RenderTarget& target)
 	{
+		if (needUpdate)
+		{
+			text.setString(stream.str());
+			stream.clear();
+			stream.flush();
+			stream.str({});
+			needUpdate = false;
+		}
+
 		target.draw(text);
 	}
 
@@ -51,4 +59,6 @@ public:
 private:
 	sf::Font font;
 	sf::Text text;
+	std::stringstream stream;
+	bool needUpdate = false;
 };

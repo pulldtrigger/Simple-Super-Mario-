@@ -1,8 +1,8 @@
 #include "Player.hpp"
+#include "DataTables.hpp"
 #include "ResourceHolder.hpp"
 #include "CommandQueue.hpp"
 #include "Utility.hpp"
-#include "DebugText.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <algorithm>
@@ -10,17 +10,23 @@
 
 #define Debug
 
+namespace
+{
+	using namespace std::placeholders;
+
+	const static std::vector<PlayerData>& Table = data::initializePlayerData();
+}
 
 Player::Player(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
-	, mSprite(textures.get(Textures::Player), sf::IntRect(80, 32, 16, 16))
+	, mSprite(textures.get(Table[type].texture), Table[type].idleRect)
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
 	, mElapsedTime(sf::Time::Zero)
-	, mJumpRect(sf::IntRect(80 + (16 * 5), 32, 16, 16))
-	, mDirectionRect(sf::IntRect(80 + (16 * 4), 32, 16, 16))
-	, mIdleRect(sf::IntRect(80, 32, 16, 16))
+	, mJumpRect(Table[type].jumpRect)
+	, mDirectionRect(Table[type].directionRect)
+	, mIdleRect(Table[type].idleRect)
 	, mDirectionTime(sf::Time::Zero)
 	, mCurrentDirection(Right | Up)
 	, mPreviousDirection(Right | Up)
@@ -31,15 +37,19 @@ Player::Player(Type type, const TextureHolder& textures)
 	, mIsFiring(false)
 	, mBullets()
 	, mTimer(sf::Time::Zero)
-	, mAffects(Blinking)
+	, mAffects(Shifting)
 	, mScaleToggle(true)
 	, mIsDying(false)
 	, mIsSmallPlayerTransformed(false)
+	, mCollisionDispatcher()
+	, mUpdateDispatcher()
 {
 	setup();
 
 	mFireCommand.category = Category::BackLayer;
-	mFireCommand.action = std::bind(&Player::createProjectile, this, std::placeholders::_1, std::cref(textures));
+	mFireCommand.action = std::bind(&Player::createProjectile, this, _1, std::cref(textures));
+
+	initialDispatching();
 }
 
 void Player::setup()
@@ -56,9 +66,191 @@ void Player::setup()
 	mFootShape.setOrigin(footBounds.width / 2.f, footBounds.height / 2.f);
 }
 
+void Player::initialDispatching()
+{
+	Dispatcher airCollision({
+		// Tiles
+		{ Category::Brick, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::Block, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::TransformBox, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::CoinsBox, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::SoloCoinBox, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::SolidBox, std::bind(&Player::airTileCollision, this, _1, _2) },
+		// Enemies
+		{ Category::Goomba, std::bind(&Player::airEnemyCollision, this, _1, _2) },
+		// Items
+		{ Category::TransformMushroom, std::bind(&Player::airItemCollision, this, _1, _2) },
+	});
+
+	Dispatcher groundCollision({
+		// Tiles
+		{ Category::Brick, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::Block, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::TransformBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::CoinsBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::SoloCoinBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::SolidBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		// Enemies
+		{ Category::Goomba, std::bind(&Player::groundEnemyCollision, this, _1, _2) },
+		// Items
+		{ Category::TransformMushroom, std::bind(&Player::groundItemCollision, this, _1, _2) },
+	});
+
+	mCollisionDispatcher.emplace_back(Behavors::Air, airCollision);
+	mCollisionDispatcher.emplace_back(Behavors::Ground, groundCollision);
+	if (mCollisionDispatcher.capacity() > mCollisionDispatcher.size())
+	{
+		mCollisionDispatcher.shrink_to_fit();
+	}
+	mUpdateDispatcher.emplace_back(Behavors::Air, std::bind(&Player::airUpdate, this, _1));
+	mUpdateDispatcher.emplace_back(Behavors::Ground, std::bind(&Player::groundUpdate, this, _1));
+	mUpdateDispatcher.emplace_back(Behavors::Dying, std::bind(&Player::dyingUpdate, this, _1));
+	if (mUpdateDispatcher.capacity() > mUpdateDispatcher.size())
+	{
+		mUpdateDispatcher.shrink_to_fit();
+	}
+}
+
+void Player::airTileCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (manifold.x != 0.f) //if side collision prevents shifting vertically up
+	{
+		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		setVelocity({});
+	}
+	else
+	{
+		if (manifold.y * manifold.z > 0)// collide with brick from bottom
+		{
+			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+			auto vel = getVelocity();
+			vel.y = -vel.y;
+			setVelocity(vel);
+		}
+		//else //NOTE: it makes player bounces rapidly under Boxes
+		//{
+		mBehavors = Ground;
+		mCurrentDirection &= ~(Up);
+		mCurrentDirection |= Idle;
+		//}
+	}
+}
+
+void Player::airEnemyCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (other->isDying()) return;
+	if (mIsSmallPlayerTransformed) return;
+	if (mAbilities & Abilities::Invincible) return;
+
+	auto sideCollisionBigPlayer = [this](const sf::Vector3f& manifold, SceneNode* other)
+	{
+		mAffects = Death | Pause | Scaling;
+		mIsSmallPlayerTransformed = true;
+		mAbilities = Regular;
+	};
+
+	auto sideCollisionSmallPlayer = [this](const sf::Vector3f& manifold, SceneNode* other)
+	{
+		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		auto vel = getVelocity();
+		vel.y = -8.f;//-475.f; // jump force
+		vel.x = 0.f;
+		setVelocity(vel);
+		mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
+		mBehavors = Dying;
+		mAffects = Pause;
+		mIsDying = true;
+	};
+
+	const static std::array<Function, Type::TypeCount> sideCollision
+	{
+		sideCollisionSmallPlayer,
+		sideCollisionBigPlayer
+	};
+
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	if (manifold.x != 0) // side collision
+	{
+		sideCollision[mType](manifold, other);
+	}
+	// NOTE: for some reasons this doesn't work, better to implement it on goomba side
+	//else //if (manifold.y != 0)
+	//{
+	//	if (manifold.y * manifold.z < 0)
+	//	{
+	//		auto vel = getVelocity();
+	//		vel.y = -vel.y;//-380.f;
+	//		setVelocity(vel);
+	//	}
+	//}
+}
+
+void Player::airItemCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (mType == Type::SmallPlayer)
+		applyTransformation();
+}
+
+void Player::groundTileCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	if (manifold.x != 0)
+		setVelocity({}); //we hit a wall so stop
+}
+
+void Player::groundEnemyCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (other->isDying()) return;
+	if (mIsSmallPlayerTransformed) return;
+	if (mAbilities & Abilities::Invincible) return;
+
+	auto sideCollisionBigPlayer = [this](const sf::Vector3f& manifold, SceneNode* other)
+	{
+		mAffects = Death | Pause | Scaling | Blinking;
+		mIsSmallPlayerTransformed = true;
+		mAbilities = Regular;
+	};
+
+	auto sideCollisionSmallPlayer = [this](const sf::Vector3f& manifold, SceneNode* other)
+	{
+		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		auto vel = getVelocity();
+		vel.y = -237.f;//-475.f; // jump force
+		vel.x = 0.f;
+		setVelocity(vel);
+		mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
+		mBehavors = Dying;
+		mAffects = Pause;
+		mIsDying = true;
+	};
+
+	const static std::array<Function, Type::TypeCount> sideCollision
+	{
+		sideCollisionSmallPlayer,
+		sideCollisionBigPlayer
+	};
+
+	if (manifold.x != 0)
+	{
+		sideCollision[mType](manifold, other);
+	}
+}
+
+void Player::groundItemCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (mType == Type::SmallPlayer)
+		applyTransformation();
+}
+
 unsigned int Player::getCategory() const
 {
-	return Category::Player;
+	const static std::array<unsigned int, Type::TypeCount> category
+	{
+		Category::SmallPlayer,
+		Category::BigPlayer
+	};
+
+	return category[mType];
 }
 
 bool Player::isMarkedForRemoval() const
@@ -79,9 +271,9 @@ bool Player::paused()
 void Player::applyFireable(Type type, unsigned int ability)
 {
 	mAbilities |= ability;
-	mJumpRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0 + 96, 16, 32) : sf::IntRect(80 + (16 * 5), 32 + 96, 16, 16);
-	mDirectionRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 4), 0 + 96, 16, 32) : sf::IntRect(80 + (16 * 4), 32 + 96, 16, 16);
-	mIdleRect = (type == Type::BigPlayer) ? sf::IntRect(80, 0 + 96, 16, 32) : sf::IntRect(80, 32 + 96, 16, 16);
+	mJumpRect = Table[type].jumpFireRect;;
+	mDirectionRect = Table[type].directionFireRect;;
+	mIdleRect = Table[type].idleFireRect;;
 	mSprite.setTextureRect(mIdleRect);
 	if (mType != type)
 		setup();
@@ -90,10 +282,12 @@ void Player::applyFireable(Type type, unsigned int ability)
 void Player::applyTransformation(Type type, unsigned int affector)
 {
 	mType = type;
-	mJumpRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 5), 0, 16, 32) : sf::IntRect(80 + (16 * 5), 32, 16, 16);
-	mDirectionRect = (type == Type::BigPlayer) ? sf::IntRect(80 + (16 * 4), 0, 16, 32) : sf::IntRect(80 + (16 * 4), 32, 16, 16);
-	mIdleRect = (type == Type::BigPlayer) ? sf::IntRect(80, 0, 16, 32) : sf::IntRect(80, 32, 16, 16);
-	mSprite.setTextureRect(mIdleRect);
+	mJumpRect = Table[type].jumpRect;
+	mDirectionRect = Table[type].directionRect;
+	mIdleRect = Table[type].idleRect;
+
+	mSprite.setTextureRect(mIdleRect); // ugly
+
 	setup();
 
 	if (!(mAffects & (Scaling | Death)))
@@ -115,6 +309,42 @@ bool Player::scalingEffect(sf::Time dt, sf::Vector2f targetScale)
 	mSprite.setScale(resultScale);
 
 	return utility::closeEnough(targetScale.y, resultScale.y, 0.0001f);
+}
+
+void Player::applyBigPlayerShifting()
+{
+	auto textureRect = mSprite.getTextureRect();
+
+	const static auto numFrames = 11u;
+	const static auto textureOffest = 16;
+
+	const static auto textureBounds = sf::Vector2i(textureRect.width, (textureRect.height + textureOffest) * numFrames);
+	const static auto startTexture = sf::IntRect(textureRect.left, 0, textureRect.width, textureRect.height);
+
+	if (textureRect.top + textureRect.height < textureBounds.y)
+		textureRect.top += textureRect.height + textureOffest;
+	else
+		textureRect = startTexture;
+
+	mSprite.setTextureRect(textureRect);
+}
+
+void Player::applySmallPlayerShifting()
+{
+	auto textureRect = mSprite.getTextureRect();
+
+	const static auto numFrames = 11u;
+	const static auto textureOffest = 32;
+
+	const static auto textureBounds = sf::Vector2i(textureRect.width, (textureRect.height + textureOffest) * numFrames);
+	const static auto startTexture = sf::IntRect(textureRect.left, textureOffest, textureRect.width, textureRect.height);
+
+	if (textureRect.top + textureRect.height < textureBounds.y)
+		textureRect.top += textureRect.height + textureOffest;
+	else
+		textureRect = startTexture;
+
+	mSprite.setTextureRect(textureRect);
 }
 
 void Player::playEffects(sf::Time dt)
@@ -141,7 +371,20 @@ void Player::playEffects(sf::Time dt)
 		mSprite.setColor({ 255u, 255u, 255u, static_cast<sf::Uint8>(utility::random(1, 255)) });
 	}
 
+	if (mAffects & Shifting)
+	{
+		if (mType == Type::BigPlayer)
+		{
+			applyBigPlayerShifting();
+		}
+		else
+		{
+			applySmallPlayerShifting();
+		}
+	}
+
 	mTimer += dt;
+
 	if (mAffects & Death)
 	{
 		if (mTimer <= sf::seconds(1.5f)) return;
@@ -158,6 +401,14 @@ void Player::playEffects(sf::Time dt)
 
 	if (mAffects & Blinking)
 		mSprite.setColor(sf::Color::White);
+
+	if (mAffects & Shifting)
+	{
+		mJumpRect = Table[mType].jumpRect;;
+		mDirectionRect = Table[mType].directionRect;;
+		mIdleRect = Table[mType].idleRect;;
+		mSprite.setTextureRect(mIdleRect);
+	}
 
 	mScaleToggle = true;
 	mAffects = Nothing;
@@ -183,70 +434,11 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 
 	accelerate(Gravity);
 
-	switch (mBehavors)
+	for (const auto& behavor : mUpdateDispatcher)
 	{
-	case Behavors::Air:
-	{
-		auto vel = getVelocity();
-		vel.x *= 0.7f;//0.6f;//0.8f;
-		if (mIsSmallPlayerTransformed) vel.y = 0.f;
-		setVelocity(vel);
+		if (behavor.first != mBehavors) continue;
 
-		if (vel.x > 0)
-		{
-			mCurrentDirection &= ~(Left);
-			mCurrentDirection |= Right;
-		}
-		else
-		{
-			mCurrentDirection &= ~(Right);
-			mCurrentDirection |= Left;
-		}
-
-	}
-	break;
-	case Behavors::Ground:
-	{
-		auto vel = getVelocity();
-		if (vel.y > 0.f) vel.y = 0.f;
-		vel.x *= 0.8f;
-		setVelocity(vel);
-
-		auto displacement = static_cast<int>(vel.x * dt.asSeconds());
-
-		if (displacement < 0)
-		{
-			mCurrentDirection &= ~(Idle | Right);
-			mCurrentDirection |= Left;
-		}
-		else if (displacement > 0)
-		{
-			mCurrentDirection &= ~(Idle | Left);
-			mCurrentDirection |= Right;
-		}
-		else
-		{
-			mCurrentDirection &= ~(Right | Left | Up);
-			mCurrentDirection |= Idle;
-		}
-
-		if (mFootSenseCount == 0u)
-		{
-			//nothing underneath so should be falling / jumping
-			mBehavors = Air;
-			mCurrentDirection &= ~(Idle);
-			mCurrentDirection |= Up;
-		}
-	}
-	break;
-	case Behavors::Dying:
-	{
-		auto vel = getVelocity();
-		vel.x = 0.f;
-		setVelocity(vel);
-	}
-	break;
-	default:break;
+		 behavor.second(dt);
 	}
 
 	playEffects(dt);
@@ -263,8 +455,68 @@ void Player::updateCurrent(sf::Time dt, CommandQueue& commands)
 
 	Entity::updateCurrent(dt, commands);
 
-	debug << "X: " + std::to_string(getWorldPosition().x) + "\n" +
-			 "Y: " + std::to_string(getWorldPosition().y);
+	debug << "X: " << getWorldPosition().x << "\n"
+		  << "Y: " << getWorldPosition().y;
+}
+
+void Player::airUpdate(sf::Time dt)
+{
+	auto vel = getVelocity();
+	vel.x *= 0.7f;//0.6f;//0.8f;
+	if (mIsSmallPlayerTransformed) vel.y = 0.f;
+	setVelocity(vel);
+
+	if (vel.x > 0)
+	{
+		mCurrentDirection &= ~(Left);
+		mCurrentDirection |= Right;
+	}
+	else if (vel.x < 0)
+	{
+		mCurrentDirection &= ~(Right);
+		mCurrentDirection |= Left;
+	}
+}
+
+void Player::groundUpdate(sf::Time dt)
+{
+	auto vel = getVelocity();
+	if (vel.y > 0.f) vel.y = 0.f;
+	vel.x *= 0.8f;
+	setVelocity(vel);
+
+	auto displacement = static_cast<int>(vel.x * dt.asSeconds());
+
+	if (displacement < 0)
+	{
+		mCurrentDirection &= ~(Idle | Right);
+		mCurrentDirection |= Left;
+	}
+	else if (displacement > 0)
+	{
+		mCurrentDirection &= ~(Idle | Left);
+		mCurrentDirection |= Right;
+	}
+	else
+	{
+		mCurrentDirection &= ~(Right | Left | Up);
+		mCurrentDirection |= Idle;
+	}
+
+	if (mFootSenseCount == 0u)
+	{
+		//nothing underneath so should be falling / jumping
+		mBehavors = Air;
+		mCurrentDirection &= ~(Idle);
+		mCurrentDirection |= Up;
+	}
+}
+
+void Player::dyingUpdate(sf::Time dt)
+{
+	auto vel = getVelocity();
+	vel.x = 0.f;
+	setVelocity(vel);
 }
 
 void Player::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
@@ -295,145 +547,18 @@ unsigned int Player::getFootSenseCount() const
 	return mFootSenseCount;
 }
 
-Type Player::getType() const
-{
-	return mType;
-}
-
 void Player::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (mBehavors)
+	for (const auto& behavor : mCollisionDispatcher)
 	{
-	case Behavors::Air:
-		switch (other->getType())
+		if (behavor.first != mBehavors) continue;
+
+		for (const auto& collider : behavor.second)
 		{
-		// Tiles
-		case Type::Brick:
-		case Type::Block:
-		case Type::CoinsBox:
-		case Type::SoloCoinBox:
-		case Type::TransformBox:
-		case Type::SolidBox:
-			if (manifold.x != 0.f) //if side collision prevents shifting vertically up
+			if (collider.first & other->getCategory())
 			{
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-				setVelocity({});
+				collider.second(manifold, other);
 			}
-			else
-			{
-				if (manifold.y * manifold.z > 0)// collide with brick from bottom
-				{
-					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-					auto vel = getVelocity();
-					vel.y = -vel.y;
-					setVelocity(vel);
-				}
-				//else //NOTE: it makes player bounces rapidly under Boxes
-				//{
-					mBehavors = Ground;
-					mCurrentDirection &= ~(Up);
-					mCurrentDirection |= Idle;
-				//}
-			}
-			break;
-
-		// Enemies
-		case Type::Goomba:
-			if (other->isDying()) break;
-			if (mIsSmallPlayerTransformed) return;
-			if (mAbilities & Abilities::Invincible) break;
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (manifold.x != 0) // side collision
-			{
-				if (mType == Type::BigPlayer)
-				{
-					mAffects = Death | Pause | Scaling;
-					mIsSmallPlayerTransformed = true;
-					mAbilities = Regular;
-				}
-				else
-				{
-					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-					auto vel = getVelocity();
-					vel.y = -8.f;//-475.f; // jump force
-					vel.x = 0.f;
-					setVelocity(vel);
-					mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
-					mBehavors = Dying;
-					mAffects = Pause;
-					mIsDying = true;
-				}
-			}
-			// NOTE: for some reasons this doesn't work, better to implement it on goomba side
-			//else //if (manifold.y != 0)
-			//{
-			//	if (manifold.y * manifold.z < 0)
-			//	{
-			//		auto vel = getVelocity();
-			//		vel.y = -vel.y;//-380.f;
-			//		setVelocity(vel);
-			//	}
-			//}
-			break;
-
-		// Items
-		case Type::TransformMushroom:
-			if (mType == Type::SmallPlayer)
-				applyTransformation();
-			break;
-		default: break;
-		}
-		break;
-
-	case Behavors::Ground:
-		switch (other->getType())
-		{
-		// Tiles
-		case Type::Block:
-		case Type::Brick:
-		case Type::CoinsBox:
-		case Type::SoloCoinBox:
-		case Type::TransformBox:
-		case Type::SolidBox:
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (manifold.x != 0)
-				setVelocity({}); //we hit a wall so stop
-			break;
-
-		// Enemies
-		case Type::Goomba:
-			if (other->isDying()) break;
-			if (mIsSmallPlayerTransformed) return;
-			if (mAbilities & Abilities::Invincible) break;
-			if (manifold.x != 0)
-			{
-				if (mType == Type::BigPlayer)
-				{
-					mAffects = Death | Pause | Scaling | Blinking;
-					mIsSmallPlayerTransformed = true;
-					mAbilities = Regular;
-				}
-				else
-				{
-					move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-					auto vel = getVelocity();
-					vel.y = -237.f;//-475.f; // jump force
-					vel.x = 0.f;
-					setVelocity(vel);
-					mSprite.setTextureRect(sf::IntRect(80 + (16 * 6), 32, 16, 16));
-					mBehavors = Dying;
-					mAffects = Pause;
-					mIsDying = true;
-				}
-			}
-			break;
-
-		// Items
-		case Type::TransformMushroom:
-			if (mType == Type::SmallPlayer)
-				applyTransformation();
-			break;
-		default: break;
 		}
 	}
 }
@@ -553,7 +678,7 @@ void Player::checkProjectiles()
 
 void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
 {
-	auto projectile(std::make_unique<Projectile>(Type::Projectile, textures));
+	auto projectile(std::make_unique<Projectile>(Projectile::PlayerProjectile, textures));
 
 	const sf::Vector2f offset(mSprite.getLocalBounds().width / 2.f, -mSprite.getLocalBounds().height / 2.f);
 

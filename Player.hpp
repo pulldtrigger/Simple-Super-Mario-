@@ -10,6 +10,13 @@
 class Player final : public Entity
 {
 public:
+	enum Type
+	{
+		SmallPlayer,
+		BigPlayer,
+		TypeCount
+	};
+
 	enum Abilities
 	{
 		None		= 0,
@@ -42,8 +49,13 @@ private:
 		Pause		= 1 << 1,
 		Blinking	= 1 << 2,
 		Scaling		= 1 << 3,
-		Death		= 1 << 4, //TODO: make it ORs
+		Shifting	= 1 << 4,
+		Death		= 1 << 5, //TODO: make it ORs
 	};
+
+	using DispatchHolder = std::vector<std::pair<Behavors, Dispatcher>>;
+	using FunctionUpdater = std::function<void(sf::Time)>;
+	using UpdateHolder = std::vector<std::pair<Behavors, FunctionUpdater>>;
 
 
 public:
@@ -56,6 +68,8 @@ public:
 	// TODO: need to be more generic and
 	void applyTransformation(Type type = Type::BigPlayer, unsigned int affector = Scaling);
 	void applyFireable(Type type = Type::BigPlayer, unsigned int ability = Fireable);
+	void applyBigPlayerShifting();
+	void applySmallPlayerShifting();
 
 
 private:
@@ -71,7 +85,7 @@ private:
 
 	void setFootSenseCount(unsigned int count) override;
 	unsigned int getFootSenseCount() const override;
-	Type getType() const override;
+
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 
 	void updateAnimation(sf::Time dt);
@@ -87,6 +101,20 @@ private:
 	void playEffects(sf::Time dt);
 	bool isDying() const override;
 
+	void initialDispatching();
+
+	void airTileCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void airEnemyCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void airItemCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void groundTileCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void groundEnemyCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void groundItemCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void airUpdate(sf::Time dt);
+	void groundUpdate(sf::Time dt);
+	void dyingUpdate(sf::Time dt);
+
 
 private:
 	Type mType;
@@ -97,7 +125,7 @@ private:
 	bool mIsMarkedForRemoval;
 
 	sf::Time mElapsedTime;
-	sf::IntRect mJumpRect;
+	sf::IntRect mJumpRect; // TODO: remove these
 	sf::IntRect mDirectionRect;
 	sf::IntRect mIdleRect;
 
@@ -118,4 +146,7 @@ private:
 
 	bool mIsDying;
 	bool mIsSmallPlayerTransformed;
+
+	DispatchHolder mCollisionDispatcher;
+	UpdateHolder mUpdateDispatcher;
 };

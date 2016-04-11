@@ -52,21 +52,16 @@ void Projectile::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) 
 	target.draw(mSprite, states);
 }
 
-Type Projectile::getType() const
-{
-	return mType;
-}
-
 void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (other->getType())
+	switch (other->getCategory())
 	{
-	case Type::SolidBox:
-	case Type::CoinsBox:
-	case Type::SoloCoinBox:
-	case Type::TransformBox:
-	case Type::Brick:
-	case Type::Block:
+	case Category::SolidBox:
+	case Category::CoinsBox:
+	case Category::SoloCoinBox:
+	case Category::TransformBox:
+	case Category::Brick:
+	case Category::Block:
 		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 		if (manifold.x != 0.f)
 		{
@@ -80,7 +75,7 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 			setVelocity(vel);
 		}
 		break;
-	case Type::Goomba:
+	case Category::Goomba:
 		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 		destroy();
 		break;

@@ -1,8 +1,6 @@
 #include "World.hpp"
-#include "Tile.hpp"
 #include "ParticleNode.hpp"
-#include "Goomba.hpp"
-#include "Item.hpp"
+#include "Enemy.hpp"
 #include "DebugText.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -74,7 +72,7 @@ void World::handleEvent(const sf::Event& event)
 			//	mSceneLayers[Back]->attachChild(std::move(item));
 			//}
 			{
-				auto item(std::make_unique<Item>(Type::TransformMushroom, mTextures));
+				auto item(std::make_unique<Item>(Item::TransformMushroom, mTextures));
 				item->setPosition(position);
 				item->setVelocity(40.f, -40.f);
 				mSceneLayers[Back]->attachChild(std::move(item));
@@ -99,7 +97,7 @@ void World::handleEvent(const sf::Event& event)
 			break;
 		case sf::Keyboard::Num2:
 			if (!mPlayer.empty())
-				mPlayer.back()->applyTransformation(Type::SmallPlayer);
+				mPlayer.back()->applyTransformation(Player::SmallPlayer);
 			break;
 		case sf::Keyboard::Num3:
 			if (!mPlayer.empty())
@@ -107,7 +105,7 @@ void World::handleEvent(const sf::Event& event)
 			break;
 		case sf::Keyboard::Num4:
 			if (!mPlayer.empty())
-				mPlayer.back()->applyFireable(Type::SmallPlayer);
+				mPlayer.back()->applyFireable(Player::SmallPlayer);
 			break;
 		case sf::Keyboard::B:
 			if(isTile)
@@ -162,9 +160,10 @@ void World::update(sf::Time dt)
 void World::draw()
 {
 	mWindow.setView(mWorldView);
+	debug.draw(mWindow);
 	mWindow.draw(mTileMap);
 	mWindow.draw(mSceneGraph);
-	debug.draw(mWindow);
+
 #ifdef Debug
 	sf::FloatRect viewBounds(mView.getCenter() - mView.getSize() / 2.f, mView.getSize());
 	sf::RectangleShape debugShape({ viewBounds.width, viewBounds.height });
@@ -232,19 +231,19 @@ void World::buildScene()
 			if (object.type == "coin")
 			{
 				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-				addBox(position, Type::SoloCoinBox);
+				addBox(position, Tile::SoloCoinBox);
 			}
 
 			if (object.type == "coins")
 			{
 				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-				addBox(position, Type::CoinsBox, object.count);
+				addBox(position, Tile::CoinsBox, object.count);
 			}
 
 			if (object.type == "transform")
 			{
 				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-				addBox(position, Type::TransformBox);
+				addBox(position, Tile::TransformBox);
 			}
 		}
 
@@ -257,7 +256,7 @@ void World::buildScene()
 		if (object.name == "static_coin")
 		{
 			sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
-			addItem(Type::StaticCoin, position);
+			addItem(Item::StaticCoin, position);
 		}
 	}
 
@@ -268,7 +267,7 @@ void World::addPlayer(sf::Vector2f position)
 {
 	if (mPlayer.empty())
 	{
-		auto player(std::make_unique<Player>(Type::SmallPlayer, mTextures));
+		auto player(std::make_unique<Player>(Player::SmallPlayer, mTextures));
 		mPlayer.emplace_back(player.get());
 		mPlayer.back()->setPosition(position);
 		mSceneLayers[Front]->attachChild(std::move(player));
@@ -277,7 +276,7 @@ void World::addPlayer(sf::Vector2f position)
 
 void World::addGoomba(sf::Vector2f position)
 {
-	auto goomba(std::make_unique<Goomba>(Type::Goomba, mTextures));
+	auto goomba(std::make_unique<Enemy>(Enemy::Goomba, mTextures));
 	goomba->setPosition(position);
 	goomba->setVelocity(-40.f, 0.f);
 	mSceneLayers[Front]->attachChild(std::move(goomba));
@@ -285,19 +284,19 @@ void World::addGoomba(sf::Vector2f position)
 
 void World::addBrick(sf::Vector2f position)
 {
-	auto brick(std::make_unique<Tile>(Type::Brick, mTextures));
+	auto brick(std::make_unique<Tile>(Tile::Brick, mTextures));
 	brick->setPosition(position);
 	mSceneLayers[Back]->attachChild(std::move(brick));
 }
 
 void World::addBlock(sf::Vector2f position, sf::Vector2f size)
 {
-	auto block(std::make_unique<Tile>(Type::Block, mTextures, size));
+	auto block(std::make_unique<Tile>(Tile::Block, mTextures, size));
 	block->setPosition(position);
 	mSceneLayers[Back]->attachChild(std::move(block));
 }
 
-void World::addBox(sf::Vector2f position, Type type, unsigned int count)
+void World::addBox(sf::Vector2f position, Tile::Type type, unsigned int count)
 {
 	auto box(std::make_unique<Tile>(type, mTextures));
 	box->setPosition(position);
@@ -305,7 +304,7 @@ void World::addBox(sf::Vector2f position, Type type, unsigned int count)
 	mSceneLayers[Front]->attachChild(std::move(box));
 }
 
-void World::addItem(Type type, sf::Vector2f position)
+void World::addItem(Item::Type type, sf::Vector2f position)
 {
 	auto item(std::make_unique<Item>(type, mTextures));
 	item->setPosition(position);

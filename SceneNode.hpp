@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Category.hpp"
-#include "Type.hpp"
 
 #include <SFML/Graphics/Transformable.hpp>
 #include <SFML/System/NonCopyable.hpp>
@@ -13,6 +12,8 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <unordered_map>
+#include <functional>
 #include <iostream>
 
 struct Command;
@@ -24,6 +25,8 @@ class SceneNode : public sf::Transformable, public sf::Drawable, private sf::Non
 public:
 	using Ptr = std::unique_ptr<SceneNode>;
 	using Pair = std::pair<SceneNode*, SceneNode*>;
+	using Function = std::function<void(const sf::Vector3f&, SceneNode*)>;
+	using Dispatcher = std::unordered_map<unsigned int, Function>;
 
 
 public:
@@ -47,7 +50,7 @@ public:
 	virtual unsigned int getFootSenseCount() const; // it should be boolean value
 	virtual void setFootSenseCount(unsigned int count);
 	virtual sf::FloatRect getFootSensorBoundingRect() const;
-	virtual Type getType() const;
+
 	virtual void resolve(const sf::Vector3f& manifold, SceneNode* otherType);
 	virtual void die();
 	virtual unsigned int getAbilities() const;

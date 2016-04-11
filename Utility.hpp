@@ -18,6 +18,7 @@
 #define M_E 2.71828182845904523536f
 #endif 
 
+#include "DebugText.hpp"
 
 namespace utility
 {
@@ -73,5 +74,28 @@ namespace utility
 		auto const y = abs(b);
 		// comparable generally and |a - b| < eps * (|a| + |b|) / 2
 		return isless(epsilon * y, x) && isless(epsilon * x, y) && isless((delta + delta) / (x + y), epsilon);
+	}
+
+	//calculates dot product of 2 vectors
+	inline float dot(const sf::Vector2f& lv, const sf::Vector2f& rv)
+	{
+		return lv.x * rv.x + lv.y * rv.y;
+	}
+	//Returns a given vector with its length normalized to 1
+	inline sf::Vector2f normalise(sf::Vector2f source)
+	{
+		float length = std::sqrt(dot(source, source));
+		if (length != 0) source /= length;
+		return source;
+	}
+	//returns length squared
+	inline float lengthSquared(const sf::Vector2f& source)
+	{
+		return dot(source, source);
+	}
+	//Returns length of a given vector
+	inline float length(const sf::Vector2f& source)
+	{
+		return std::sqrt(lengthSquared(source));
 	}
 }

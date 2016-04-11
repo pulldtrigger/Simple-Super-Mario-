@@ -1,5 +1,5 @@
 #include "Game.hpp"
-
+#include "DebugText.hpp"
 #include <SFML/Window/Event.hpp>
 
 
@@ -10,7 +10,7 @@ Game::Game(const std::string& title, unsigned width, unsigned height)
 	, mFullScreen(false)
 {
 	mWindow.setKeyRepeatEnabled(false);
-	mWindow.setVerticalSyncEnabled(true);
+	//mWindow.setVerticalSyncEnabled(true); // problem with text-debug
 }
 
 void Game::run()
@@ -39,7 +39,6 @@ void Game::run()
 void Game::processEvents()
 {
 	const static auto initialSize = mWindow.getSize();
-	const static auto videoMode = sf::VideoMode(initialSize.x, initialSize.y);
 
 	static sf::Event event;
 
@@ -69,6 +68,7 @@ void Game::processEvents()
 				mFullScreen = !mFullScreen;
 
 				auto style = mFullScreen ? sf::Style::Fullscreen : sf::Style::Default;
+				auto videoMode = mFullScreen ? sf::VideoMode::getDesktopMode() : sf::VideoMode(initialSize.x, initialSize.y);
 
 				mWindow.create(videoMode, mTitle, style);
 			}

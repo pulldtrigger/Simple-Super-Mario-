@@ -1,5 +1,5 @@
 #include "Entity.hpp"
-
+#include "Utility.hpp"
 
 Entity::Entity(int hitpoints)
 	: mVelocity()
@@ -35,7 +35,10 @@ bool Entity::isDestroyed() const
 
 void Entity::updateCurrent(sf::Time dt, CommandQueue&)
 {
-	move(mVelocity * dt.asSeconds());
+	auto speed = utility::length(mVelocity) * dt.asSeconds();
+	auto velocity = utility::normalise(mVelocity) * speed;
+
+	move(velocity);
 }
 
 void Entity::accelerate(sf::Vector2f velocity)

@@ -10,6 +10,14 @@
 class Projectile final : public Entity
 {
 public:
+	enum Type
+	{
+		PlayerProjectile,
+		TypeCount
+	};
+
+
+public:
 	explicit Projectile(Type type, const TextureHolder& textures);
 
 	void adaptProjectileVelocity(float vx);
@@ -22,7 +30,7 @@ private:
 	sf::FloatRect getBoundingRect() const override;
 	bool isMarkedForRemoval() const override;
 	unsigned int getCategory() const override;
-	Type getType() const override;
+
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
 
 

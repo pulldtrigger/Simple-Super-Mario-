@@ -1,41 +1,81 @@
 #include "Tile.hpp"
+#include "DataTables.hpp"
 #include "ResourceHolder.hpp"
 #include "ParticleNode.hpp"
 #include "CommandQueue.hpp"
-#include "Item.hpp"
+//#include "Item.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <array>
 #include <iostream>
 #define Debug
 
+namespace
+{
+	using namespace std::placeholders;
+
+	const static std::vector<TileData>& Table = data::initializeTileData();
+}
+
 Tile::Tile(Type type, const TextureHolder& textures, sf::Vector2f size)
 	: mType(type)
-	, mSprite(textures.get(Textures::Tile), (type == Type::Brick) ? sf::IntRect(16, 0, 16, 16) : sf::IntRect(16 * 24, 0, 16, 16))
+	, mSprite(textures.get(Table[type].texture), Table[type].textureRect)
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
 	, mIsHitBySmallPlayer(false)
 	, mIsHitByBigPlayer(false)
 	, mTimer(sf::Time::Zero)
 	, mJump(0.f, -5.2f)
-	, mSpawnedExplosion(false)
+	, mSpawnedExplosion(true)
 	, mElapsedTime(sf::Time::Zero)
-	, mIdleRect(sf::IntRect(16 * 27, 0, 16, 16))
-	, mCanAnimate((type == Type::Brick || type == Type::Block) ? false : true)
+	, mCanAnimate(Table[type].canAnimate)
 	, mCoinsCount()
 	, mCoinCommand()
 	, mTransformCommand()
 	, mIsFired(false)
+	, mCollisionDispatcher()
+	, mUpdater()
 {
 	switch (mType)
 	{
+	case Type::Brick:
+		mUpdater = std::bind(&Tile::brickUpdate, this, _1, _2);
+		mSpawnedExplosion = false;
+		mCollisionDispatcher.insert({
+			{ Category::BigPlayer, std::bind(&Tile::brickBigPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Tile::brickSmallPlayerCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
+		});
+		break;
 	case Type::CoinsBox:
-	case Type::SoloCoinBox:
+		mUpdater = std::bind(&Tile::coinsBoxUpdate, this, _1, _2);
 		mCoinCommand.category = Category::BackLayer;
-		mCoinCommand.action = std::bind(&Tile::createItem, this, std::placeholders::_1, std::cref(textures), Type::MoveableCoin);
+		mCoinCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::MoveableCoin);
+		mCollisionDispatcher.insert({
+			{ Category::BigPlayer, std::bind(&Tile::coinsBoxBigPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Tile::coinsBoxSmallPlayerCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
+		});
+		break;
+	case Type::SoloCoinBox:
+		mUpdater = std::bind(&Tile::soloCoinBoxUpdate, this, _1, _2);
+		mCoinCommand.category = Category::BackLayer;
+		mCoinCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::MoveableCoin);
+		mCollisionDispatcher.insert({
+			{ Category::BigPlayer, std::bind(&Tile::boxBigPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Tile::boxSmallPlayerCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
+		});
 	break;
 	case Type::TransformBox:
+		mUpdater = std::bind(&Tile::transformBoxUpdate, this, _1, _2);
 		mTransformCommand.category = Category::BackLayer;
-		mTransformCommand.action = std::bind(&Tile::createItem, this, std::placeholders::_1, std::cref(textures), Type::TransformMushroom);
+		mTransformCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::TransformMushroom);
+		mCollisionDispatcher.insert({
+			{ Category::BigPlayer, std::bind(&Tile::boxBigPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Tile::boxSmallPlayerCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
+		});
 	break;
 	default: break;
 	}
@@ -70,6 +110,7 @@ void Tile::setup(sf::Vector2f size)
 		mFootShape.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
 	}
 }
+
 void Tile::setCoinsCount(unsigned int count)
 {
 	mCoinsCount = count;
@@ -77,7 +118,17 @@ void Tile::setCoinsCount(unsigned int count)
 
 unsigned int Tile::getCategory() const
 {
-	return Category::Tile;
+	const static std::array<unsigned int, Type::TypeCount> category
+	{
+		Category::Block,
+		Category::Brick,
+		Category::SoloCoinBox,
+		Category::CoinsBox,
+		Category::TransformBox,
+		Category::SolidBox,
+	};
+
+	return category[mType];
 }
 
 bool Tile::isMarkedForRemoval() const
@@ -93,89 +144,99 @@ sf::FloatRect Tile::getBoundingRect() const
 		return getWorldTransform().transformRect(mFootShape.getGlobalBounds());
 }
 
+void Tile::brickUpdate(sf::Time dt, CommandQueue& commands)
+{
+	mTimer += dt;
+
+	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
+	{
+		move(-mJump);
+		mIsHitBySmallPlayer = false;
+	}
+
+	if (mTimer >= sf::seconds(0.0225f) && mIsHitByBigPlayer)
+	{
+		move(-mJump);
+		destroy();
+		mIsHitByBigPlayer = false;
+	}
+}
+
+void Tile::soloCoinBoxUpdate(sf::Time dt, CommandQueue& commands)
+{
+	mTimer += dt;
+
+	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
+	{
+		move(-mJump);
+		mIsHitBySmallPlayer = false;
+		mCanAnimate = false;
+		mSprite.setTextureRect(Table[mType].idleRect);
+		mCollisionDispatcher.clear();
+		mType = Type::SolidBox;
+	}
+
+	if (mIsFired)
+	{
+		mIsFired = false;
+		commands.push(mCoinCommand);
+	}
+}
+
+void Tile::coinsBoxUpdate(sf::Time dt, CommandQueue& commands)
+{
+	mTimer += dt;
+
+	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
+	{
+		move(-mJump);
+		mIsHitBySmallPlayer = false;
+		if (mCoinsCount > 0) return;
+		mCanAnimate = false;
+		mSprite.setTextureRect(Table[mType].idleRect);
+		mCollisionDispatcher.clear();
+		mType = Type::SolidBox;
+	}
+
+	if (mIsFired)
+	{
+		mIsFired = false;
+		commands.push(mCoinCommand);
+	}
+}
+
+void Tile::transformBoxUpdate(sf::Time dt, CommandQueue& commands)
+{
+	mTimer += dt;
+
+	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
+	{
+		move(-mJump);
+		mIsHitBySmallPlayer = false;
+		mCanAnimate = false;
+		mSprite.setTextureRect(Table[mType].idleRect);
+		mCollisionDispatcher.clear();
+		mType = Type::SolidBox;
+	}
+
+	if (mIsFired)
+	{
+		mIsFired = false;
+		commands.push(mTransformCommand);
+	}
+}
+
 void Tile::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	if (isDestroyed())
 	{
 		std::cout << "Tile destroyed\n";
-		if (mType == Type::Brick)
-			checkExplosion(commands);
+		checkExplosion(commands);
 		mIsMarkedForRemoval = true;
 		return;
 	}
 
-	mTimer += dt;
-
-	if (mTimer >= sf::seconds(0.0225f) && mIsHitByBigPlayer)
-	{
-		switch (mType)
-		{
-		case Type::Brick:
-			move(-mJump);
-			destroy();
-			mIsHitByBigPlayer = false;
-			break;
-		case Type::CoinsBox:
-		case Type::SoloCoinBox:
-		case Type::TransformBox:
-		default: break;
-		}
-	}
-
-	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
-	{
-		switch (mType)
-		{
-		case Type::Brick:
-			move(-mJump);
-			mIsHitBySmallPlayer = false;
-			break;
-		case Type::CoinsBox:
-			move(-mJump);
-			mIsHitBySmallPlayer = false;
-			if (mCoinsCount > 0) break;
-			mCanAnimate = false;
-			mSprite.setTextureRect(mIdleRect);
-			mType = Type::SolidBox;
-			break;
-		case Type::SoloCoinBox:
-		case Type::TransformBox:
-			move(-mJump);
-			mIsHitBySmallPlayer = false;
-			mCanAnimate = false;
-			mSprite.setTextureRect(mIdleRect);
-			mType = Type::SolidBox;
-			break;
-		case Type::Block:
-			break;
-		default: break;
-		}
-	}
-
-	// check commands
-	switch (mType)
-	{
-	case Type::Brick:
-		break;
-	case Type::CoinsBox:
-	case Type::SoloCoinBox:
-		if (mIsFired)
-		{
-			mIsFired = false;
-			commands.push(mCoinCommand);
-		}
-		break;
-	case Type::TransformBox:
-		if (mIsFired)
-		{
-			mIsFired = false;
-			commands.push(mTransformCommand);
-		}
-		break;
-	case Type::Block:
-		break;
-	default: break;
-	}
+	if (mUpdater) mUpdater(dt, commands);
 
 	updateAnimation(dt);
 }
@@ -204,152 +265,97 @@ unsigned int Tile::getFootSenseCount() const
 	return mFootSenseCount;
 }
 
-Type Tile::getType() const
-{
-	return mType;
-}
-
 void Tile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (mType)
+	for (const auto& collider : mCollisionDispatcher)
 	{
-	case Type::Brick:
-		resolveBrick(manifold, other);
-		break;
-	case Type::CoinsBox:
-		resolveCoinsBox(manifold, other);
-		break;
-	case Type::SoloCoinBox:
-		resolveSoloCoinBox(manifold, other);
-		break;
-	case Type::TransformBox:
-		resolveTransformBox(manifold, other);
-		break;
-	case Type::Block:
-		break;
-	default: break;
+		if (collider.first & other->getCategory())
+		{
+			collider.second(manifold, other);
+		}
 	}
 }
 
-void Tile::resolveBrick(const sf::Vector3f& manifold, SceneNode* other)
+void Tile::brickBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (other->getType())
+	if (manifold.y * manifold.z < 0 && !mIsHitByBigPlayer)
 	{
-	case Type::SmallPlayer:
-		if (other->isDying()) break;
-
-		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
+		if (getFootSenseCount() != 0u)
 		{
-			mIsHitBySmallPlayer = true;
+			mIsHitByBigPlayer = true;
 			mTimer = sf::Time::Zero;
 			move(mJump);
 		}
-		break;
-	case Type::BigPlayer:
-		if (manifold.y * manifold.z < 0 && !mIsHitByBigPlayer)
+		else
 		{
-			if (getFootSenseCount() != 0u)
-			{
-				mIsHitByBigPlayer = true;
-				mTimer = sf::Time::Zero;
-				move(mJump);
-			}
-			else
-			{
-				destroy();
-			}
+			destroy();
 		}
-
-		break;
-	case Type::Goomba:
-		if (mIsHitBySmallPlayer || mIsHitByBigPlayer) other->die();
-		break;
-	default: break;
 	}
 }
 
-void Tile::resolveCoinsBox(const sf::Vector3f& manifold, SceneNode* other)
+void Tile::brickSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (other->getType())
+	if (other->isDying()) return;
+
+	if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
 	{
-	case Type::SmallPlayer:
-		if (other->isDying()) break;
-		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer && mCoinsCount > 0)
-		{
-			mCoinsCount--;
-			mIsHitBySmallPlayer = true;
-			mTimer = sf::Time::Zero;
-			mIsFired = true;
-			move(mJump);
-		}
-		break;
-	case Type::BigPlayer:
-		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer && mCoinsCount > 0)
-		{
-			mCoinsCount--;
-			mIsHitBySmallPlayer = true;
-			mTimer = sf::Time::Zero;
-			mIsFired = true;
-			move(mJump);
-		}
-		break;
-	case Type::Goomba:
-		if (mIsHitBySmallPlayer || mIsHitByBigPlayer) other->die();
-		break;
-	default: break;
+		mIsHitBySmallPlayer = true;
+		mTimer = sf::Time::Zero;
+		move(mJump);
 	}
 }
 
-void Tile::resolveSoloCoinBox(const sf::Vector3f& manifold, SceneNode* other)
+void Tile::coinsBoxBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (other->getType())
+	if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer && mCoinsCount > 0)
 	{
-	case Type::SmallPlayer:
-		if (other->isDying()) break;
-	case Type::BigPlayer:
-		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
-		{
-			mIsHitBySmallPlayer = true;
-			mTimer = sf::Time::Zero;
-			mIsFired = true;
-			move(mJump);
-		}
-		break;
-	case Type::Goomba:
-		if (mIsHitBySmallPlayer || mIsHitByBigPlayer) other->die();
-		break;
-	default: break;
+		mCoinsCount--;
+		mIsHitBySmallPlayer = true;
+		mTimer = sf::Time::Zero;
+		mIsFired = true;
+		move(mJump);
 	}
 }
 
-void Tile::resolveTransformBox(const sf::Vector3f& manifold, SceneNode* other)
+void Tile::coinsBoxSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
-	switch (other->getType())
+	if (other->isDying()) return;
+	if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer && mCoinsCount > 0)
 	{
-	case Type::SmallPlayer:
-		if (other->isDying()) break;
-		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
-		{
-			mIsHitBySmallPlayer = true;
-			mTimer = sf::Time::Zero;
-			mIsFired = true;
-			move(mJump);
-		}
-		break;
-	case Type::BigPlayer:
-		if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
-		{
-			mIsHitBySmallPlayer = true;
-			mTimer = sf::Time::Zero;
-			mIsFired = true;
-			move(mJump);
-		}
-		break;
-	case Type::Goomba:
-		if (mIsHitBySmallPlayer || mIsHitByBigPlayer) other->die();
-		break;
-	default: break;
+		mCoinsCount--;
+		mIsHitBySmallPlayer = true;
+		mTimer = sf::Time::Zero;
+		mIsFired = true;
+		move(mJump);
 	}
+}
+
+void Tile::boxBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
+	{
+		mIsHitBySmallPlayer = true;
+		mTimer = sf::Time::Zero;
+		mIsFired = true;
+		move(mJump);
+	}
+}
+
+void Tile::boxSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (other->isDying()) return;
+	if (manifold.y * manifold.z < 0 && !mIsHitBySmallPlayer)
+	{
+		mIsHitBySmallPlayer = true;
+		mTimer = sf::Time::Zero;
+		mIsFired = true;
+		move(mJump);
+	}
+}
+
+void Tile::enemyCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (mIsHitBySmallPlayer || mIsHitByBigPlayer) other->die();
 }
 
 void Tile::checkExplosion(CommandQueue& commands)
@@ -395,11 +401,11 @@ void Tile::updateAnimation(sf::Time dt)
 	mSprite.setTextureRect(textureRect);
 }
 
-void Tile::createItem(SceneNode& node, const TextureHolder& textures, Type type)
+void Tile::createItem(SceneNode& node, const TextureHolder& textures, Item::Type type)
 {
 	switch (type)
 	{
-	case Type::MoveableCoin:
+	case Item::MoveableCoin:
 	{
 		auto item(std::make_unique<Item>(type, textures));
 		item->setPosition(getWorldPosition());
@@ -407,7 +413,7 @@ void Tile::createItem(SceneNode& node, const TextureHolder& textures, Type type)
 		node.attachChild(std::move(item));
 	}
 	break;
-	case Type::TransformMushroom:
+	case Item::TransformMushroom:
 	{
 		auto item(std::make_unique<Item>(type, textures));
 		item->setPosition(getWorldPosition());

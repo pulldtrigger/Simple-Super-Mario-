@@ -3,6 +3,7 @@
 #include "Entity.hpp"
 #include "ResourceIdentifiers.hpp"
 #include "Command.hpp"
+#include "Item.hpp"
 
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
@@ -10,6 +11,24 @@
 
 class Tile final : public Entity
 {
+public:
+	enum Type
+	{
+		Block,
+		Brick,
+		SoloCoinBox,
+		CoinsBox,
+		TransformBox,
+		SolidBox,
+		TypeCount
+	};
+
+
+private:
+	using DispatchHolder = std::vector<std::pair<Type, Dispatcher>>;
+	using FunctionUpdater = std::function<void(sf::Time, CommandQueue&)>;
+
+
 public:
 	explicit Tile(Type type, const TextureHolder& textures, sf::Vector2f size = {});
 
@@ -24,12 +43,7 @@ private:
 	bool isMarkedForRemoval() const override;
 	unsigned int getCategory() const override;
 
-	Type getType() const override;
 	void resolve(const sf::Vector3f& manifold, SceneNode* other) override;
-	void resolveBrick(const sf::Vector3f& manifold, SceneNode* other);
-	void resolveCoinsBox(const sf::Vector3f& manifold, SceneNode* other);
-	void resolveSoloCoinBox(const sf::Vector3f& manifold, SceneNode* other);
-	void resolveTransformBox(const sf::Vector3f& manifold, SceneNode* other);
 
 	sf::FloatRect getFootSensorBoundingRect() const override;
 
@@ -40,7 +54,22 @@ private:
 	void updateAnimation(sf::Time dt);
 	void setup(sf::Vector2f size);
 
-	void createItem(SceneNode& node, const TextureHolder& textures, Type type);
+	void createItem(SceneNode& node, const TextureHolder& textures, Item::Type type);
+
+	void brickUpdate(sf::Time dt, CommandQueue& commands);
+	void soloCoinBoxUpdate(sf::Time dt, CommandQueue& commands);
+	void coinsBoxUpdate(sf::Time dt, CommandQueue& commands);
+	void transformBoxUpdate(sf::Time dt, CommandQueue& commands);
+
+	void brickBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void brickSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void coinsBoxBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void coinsBoxSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void boxBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void boxSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void enemyCollision(const sf::Vector3f& manifold, SceneNode* other);
 
 
 private:
@@ -57,7 +86,6 @@ private:
 	bool mSpawnedExplosion;
 
 	sf::Time mElapsedTime;
-	sf::IntRect mIdleRect;
 	bool mCanAnimate;
 
 	unsigned int mCoinsCount;
@@ -65,4 +93,7 @@ private:
 	Command mCoinCommand;
 	Command mTransformCommand;
 	bool mIsFired;
+
+	Dispatcher mCollisionDispatcher;
+	FunctionUpdater mUpdater;
 };
