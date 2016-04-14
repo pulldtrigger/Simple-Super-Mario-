@@ -50,7 +50,8 @@ private:
 		Blinking	= 1 << 2,
 		Scaling		= 1 << 3,
 		Shifting	= 1 << 4,
-		Death		= 1 << 5, //TODO: make it ORs
+		Death		= 1 << 5,
+		Power		= 1 << 6,
 	};
 
 	using DispatchHolder = std::vector<std::pair<Behavors, Dispatcher>>;
@@ -65,7 +66,6 @@ public:
 	void fire();
 	bool paused();
 
-	// TODO: need to be more generic and
 	void applyTransformation(Type type = Type::BigPlayer, unsigned int affector = Scaling);
 	void applyFireable(Type type = Type::BigPlayer, unsigned int ability = Fireable);
 	void applyBigPlayerShifting();
@@ -105,11 +105,13 @@ private:
 
 	void airTileCollision(const sf::Vector3f& manifold, SceneNode* other);
 	void airEnemyCollision(const sf::Vector3f& manifold, SceneNode* other);
-	void airItemCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void mushroomCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void flowerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void starCollision(const sf::Vector3f& manifold, SceneNode* other);
 
 	void groundTileCollision(const sf::Vector3f& manifold, SceneNode* other);
 	void groundEnemyCollision(const sf::Vector3f& manifold, SceneNode* other);
-	void groundItemCollision(const sf::Vector3f& manifold, SceneNode* other);
 
 	void airUpdate(sf::Time dt);
 	void groundUpdate(sf::Time dt);

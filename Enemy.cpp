@@ -89,7 +89,7 @@ void Enemy::updateCurrent(sf::Time dt, CommandQueue& commands)
 	case Behavors::Ground:
 	{
 		auto vel = getVelocity();
-		if (vel.y > 0.f) vel.y = 0.f;
+		vel.y = std::min({}, vel.y);
 		setVelocity(vel);
 		if (getFootSenseCount() == 0) { mBehavors = Air; };
 
@@ -100,7 +100,7 @@ void Enemy::updateCurrent(sf::Time dt, CommandQueue& commands)
 		if (mIsCrushed)
 		{
 			auto vel = getVelocity();
-			if (vel.y > 0.f) vel.y = 0.f;
+			vel.y = std::min({}, vel.y);
 			setVelocity(vel);
 			mDyingTimer += dt;
 			if (mDyingTimer >= sf::seconds(1))
@@ -196,7 +196,7 @@ void Enemy::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		case Category::Block:
 		case Category::Brick:
 		case Category::Goomba:
-		case Category::TransformMushroom:
+		case Category::Mushroom:
 			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 			if (manifold.x != 0)
 			{

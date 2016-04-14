@@ -5,12 +5,14 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <array>
 #include <iostream>
-//#define Debug
+#define Debug
 
 namespace
 {
 	const static std::vector<ItemData>& Table = data::initializeItemData();
 }
+
+const sf::Vector2f Item::Gravity(0.f, 25.f);
 
 Item::Item(Type type, const TextureHolder& textures)
 	: mType(type)
@@ -30,8 +32,7 @@ Item::Item(Type type, const TextureHolder& textures)
 	switch (mType)
 	{
 	case Type::StaticCoin:
-		mUpdater = std::bind(&Item::staticCoinUpdate, this, _1);
-		mCollision = std::bind(&Item::resolveStaticCoin, this, _1, _2);
+		mCollision = std::bind(&Item::collisions, this, _1, _2);
 		mBehaversCollision.insert({
 			{ Category::BigPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
 			{ Category::SmallPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
@@ -41,27 +42,27 @@ Item::Item(Type type, const TextureHolder& textures)
 		mUpdater = std::bind(&Item::moveableCoinUpdate, this, _1);
 
 		break;
-	case Type::TransformMushroom:
+	case Type::Mushroom:
 	{
-		mUpdater = std::bind(&Item::transformMushroomUpdate, this, _1);
-		mUpdateDispatcher.emplace_back(Behavors::None, std::bind(&Item::transformMushroomNoneUpdate, this, _1));
-		mUpdateDispatcher.emplace_back(Behavors::Air, std::bind(&Item::transformMushroomAirUpdate, this, _1));
-		mUpdateDispatcher.emplace_back(Behavors::Ground, std::bind(&Item::transformMushroomGroundUpdate, this, _1));
+		mUpdater = std::bind(&Item::behaversUpdate, this, _1);
+		mUpdateDispatcher.emplace_back(Behavors::None, std::bind(&Item::mushroomNoneUpdate, this, _1));
+		mUpdateDispatcher.emplace_back(Behavors::Air, std::bind(&Item::airUpdate, this, _1));
+		mUpdateDispatcher.emplace_back(Behavors::Ground, std::bind(&Item::mushroomGroundUpdate, this, _1));
 		if (mUpdateDispatcher.capacity() > mUpdateDispatcher.size())
 		{
 			mUpdateDispatcher.shrink_to_fit();
 		}
-		mCollision = std::bind(&Item::resolveTransformMushroom, this, _1, _2);
+		mCollision = std::bind(&Item::resolveMushroom, this, _1, _2);
 		Dispatcher airCollision({
 			// Tiles
-			{ Category::Brick, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::Block, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::TransformBox, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::CoinsBox, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::SoloCoinBox, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::SolidBox, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
+			{ Category::Brick, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
 			// Enemies
-			{ Category::Goomba, std::bind(&Item::airTransformMushroomObjectsCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Item::airMushroomObjectsCollision, this, _1, _2) },
 			// Player
 			{ Category::BigPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
 			{ Category::SmallPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
@@ -69,14 +70,14 @@ Item::Item(Type type, const TextureHolder& textures)
 
 		Dispatcher groundCollision({
 			// Tiles
-			{ Category::Brick, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::Block, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::TransformBox, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::CoinsBox, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::SoloCoinBox, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
-			{ Category::SolidBox, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
+			{ Category::Brick, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
 			// Enemies
-			{ Category::Goomba, std::bind(&Item::groundTransformMushroomObjectsCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Item::groundMushroomObjectsCollision, this, _1, _2) },
 			// Player
 			{ Category::BigPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
 			{ Category::SmallPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
@@ -90,6 +91,40 @@ Item::Item(Type type, const TextureHolder& textures)
 		}
 	}
 		break;
+	case Type::Flower:
+		mUpdater = std::bind(&Item::flowerUpdate, this, _1);
+		mCollision = std::bind(&Item::collisions, this, _1, _2);
+		mBehaversCollision.insert({
+			{ Category::BigPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
+		});
+		break;
+	case Type::Star:
+	{
+		mUpdater = std::bind(&Item::behaversUpdate, this, _1);
+		mUpdateDispatcher.emplace_back(Behavors::None, std::bind(&Item::starNoneUpdate, this, _1));
+		mUpdateDispatcher.emplace_back(Behavors::Air, std::bind(&Item::airUpdate, this, _1));
+		if (mUpdateDispatcher.capacity() > mUpdateDispatcher.size())
+		{
+			mUpdateDispatcher.shrink_to_fit();
+		}
+		mCollision = std::bind(&Item::collisions, this, _1, _2);
+		mBehaversCollision.insert({
+			// Tiles
+			{ Category::Brick, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			// Enemies
+			{ Category::Goomba, std::bind(&Item::starObjectsCollision, this, _1, _2) },
+			// Player
+			{ Category::BigPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Item::playerCollision, this, _1, _2) },
+		});
+	}
+	break;
 	default: break;
 	}
 
@@ -112,7 +147,9 @@ unsigned int Item::getCategory() const
 	{
 		Category::StaticCoin,
 		Category::MoveableCoin,
-		Category::TransformMushroom,
+		Category::Mushroom,
+		Category::Flower,
+		Category::Star,
 	};
 
 	return category[mType];
@@ -128,15 +165,8 @@ sf::FloatRect Item::getBoundingRect() const
 	return getWorldTransform().transformRect(mSprite.getGlobalBounds());
 }
 
-void Item::staticCoinUpdate(sf::Time dt)
-{
-	updateAnimation(dt);
-}
-
 void Item::moveableCoinUpdate(sf::Time dt)
 {
-	static const sf::Vector2f Gravity(0.f, 25.f);
-
 	accelerate(Gravity);
 
 	auto vel = getVelocity();
@@ -145,10 +175,9 @@ void Item::moveableCoinUpdate(sf::Time dt)
 		destroy();
 		return;
 	}
-	updateAnimation(dt);
 }
 
-void Item::transformMushroomUpdate(sf::Time dt)
+void Item::behaversUpdate(sf::Time dt)
 {
 	for (const auto& behavor : mUpdateDispatcher)
 	{
@@ -158,34 +187,50 @@ void Item::transformMushroomUpdate(sf::Time dt)
 	}
 }
 
-void Item::transformMushroomNoneUpdate(sf::Time dt)
+void Item::airUpdate(sf::Time dt)
+{
+	accelerate(Gravity);
+}
+
+void Item::mushroomNoneUpdate(sf::Time dt)
 {
 	const static auto intialPosition = getWorldPosition().y;
 
 	if (getWorldPosition().y < intialPosition - mSprite.getLocalBounds().height * 3.f / 4.f)
 	{
-		auto vel = getVelocity();
-		vel.y = 0.f;
-		vel.x = 40.f;
-		setVelocity(vel);
+		setVelocity({ 40.f, 0.f });
 		mBehavors = Air;//Ground;
 	}
 }
 
-void Item::transformMushroomAirUpdate(sf::Time dt)
-{
-	static const sf::Vector2f Gravity(0.f, 25.f);
-
-	accelerate(Gravity);
-}
-
-void Item::transformMushroomGroundUpdate(sf::Time dt)
+void Item::mushroomGroundUpdate(sf::Time dt)
 {
 	auto vel = getVelocity();
-	if (vel.y > 0.f) vel.y = 0.f;
+	vel.y = std::min({}, vel.y);
 	setVelocity(vel);
 
 	if (getFootSenseCount() == 0) { mBehavors = Air; };
+}
+
+void Item::flowerUpdate(sf::Time dt)
+{
+	const static auto intialPosition = getWorldPosition().y;
+
+	if (getWorldPosition().y < intialPosition - mSprite.getLocalBounds().height * 3.f / 4.f)
+	{
+		setVelocity({});
+	}
+}
+
+void Item::starNoneUpdate(sf::Time dt)
+{
+	const static auto intialPosition = getWorldPosition().y;
+
+	if (getWorldPosition().y < intialPosition - mSprite.getLocalBounds().height * 3.f / 4.f)
+	{
+		setVelocity({40.f, -350.f});
+		mBehavors = Air;
+	}
 }
 
 void Item::updateCurrent(sf::Time dt, CommandQueue& commands)
@@ -198,6 +243,9 @@ void Item::updateCurrent(sf::Time dt, CommandQueue& commands)
 	}
 
 	if (mUpdater) mUpdater(dt);
+
+	if ( mType != Type::Mushroom)
+		updateAnimation(dt);
 
 	Entity::updateCurrent(dt, commands);
 }
@@ -230,7 +278,7 @@ void Item::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	if (mCollision) mCollision(manifold, other);
 }
 
-void Item::resolveStaticCoin(const sf::Vector3f& manifold, SceneNode* other)
+void Item::collisions(const sf::Vector3f& manifold, SceneNode* other)
 {
 	for (const auto& collider : mBehaversCollision)
 	{
@@ -241,7 +289,7 @@ void Item::resolveStaticCoin(const sf::Vector3f& manifold, SceneNode* other)
 	}
 }
 
-void Item::resolveTransformMushroom(const sf::Vector3f& manifold, SceneNode* other)
+void Item::resolveMushroom(const sf::Vector3f& manifold, SceneNode* other)
 {
 	for (const auto& behavor : mCollisionDispatcher)
 	{
@@ -260,23 +308,47 @@ void Item::resolveTransformMushroom(const sf::Vector3f& manifold, SceneNode* oth
 void Item::playerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	if (other->isDying()) return;
-	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-	destroy();
+
+	if (mType != Type::Flower)
+	{
+		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		destroy();
+
+	}
 }
 
-void Item::airTransformMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Item::airMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 	mBehavors = Behavors::Ground;
 }
 
-void Item::groundTransformMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Item::groundMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 	if (manifold.x != 0)
 	{
 		auto vel = getVelocity();
 		vel.x = -vel.x;
+		setVelocity(vel);
+	}
+}
+
+void Item::starObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (mBehavors != Behavors::Air) return;
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	if (manifold.x != 0.f)
+	{
+		auto vel = getVelocity();
+		vel.x = -vel.x; // jump force
+		setVelocity(vel);
+	}
+	else
+	{
+		//jump away from floor,
+		auto vel = getVelocity();
+		vel.y = -250.f; // jump force
 		setVelocity(vel);
 	}
 }

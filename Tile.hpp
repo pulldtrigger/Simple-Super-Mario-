@@ -19,6 +19,8 @@ public:
 		SoloCoinBox,
 		CoinsBox,
 		TransformBox,
+		FireBox,
+		ShiftBox,
 		SolidBox,
 		TypeCount
 	};
@@ -57,9 +59,7 @@ private:
 	void createItem(SceneNode& node, const TextureHolder& textures, Item::Type type);
 
 	void brickUpdate(sf::Time dt, CommandQueue& commands);
-	void soloCoinBoxUpdate(sf::Time dt, CommandQueue& commands);
-	void coinsBoxUpdate(sf::Time dt, CommandQueue& commands);
-	void transformBoxUpdate(sf::Time dt, CommandQueue& commands);
+	void boxUpdate(sf::Time dt, CommandQueue& commands);
 
 	void brickBigPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
 	void brickSmallPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
@@ -90,8 +90,7 @@ private:
 
 	unsigned int mCoinsCount;
 
-	Command mCoinCommand;
-	Command mTransformCommand;
+	Command mCommand;
 	bool mIsFired;
 
 	Dispatcher mCollisionDispatcher;

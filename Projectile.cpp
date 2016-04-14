@@ -7,8 +7,10 @@
 
 Projectile::Projectile(Type type, const TextureHolder& textures)
 	: mType(type)
-	, mSprite(textures.get(Textures::Items), sf::IntRect(96, 144, 8, 8))
+	, mSprite(textures.get(Textures::Items), sf::IntRect(6 * 16, 9 * 16, 8, 8))
 	, mIsMarkedForRemoval(false)
+	, mTimeDely(sf::Time::Zero)
+	, mIsDying(false)
 {
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
@@ -40,6 +42,15 @@ void Projectile::updateCurrent(sf::Time dt, CommandQueue& commands)
 		return;
 	}
 
+	mTimeDely += dt;
+
+	if (mIsDying)
+	{
+		if (mTimeDely > sf::seconds(0.05f))
+			destroy();
+		return;
+	}
+
 	accelerate(Gravity);
 
 	rotate(10.f);
@@ -62,10 +73,12 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	case Category::TransformBox:
 	case Category::Brick:
 	case Category::Block:
-		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		if (mIsDying) return;
 		if (manifold.x != 0.f)
 		{
-			destroy();
+			mSprite.setTextureRect(sf::IntRect(7 * 16, 9 * 16, 16, 16));
+			mIsDying = true;
+			mTimeDely = sf::Time::Zero;
 		}
 		else
 		{
@@ -76,8 +89,10 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 		}
 		break;
 	case Category::Goomba:
-		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-		destroy();
+		if (mIsDying) return;
+		mSprite.setTextureRect(sf::IntRect(7 * 16, 9 * 16, 16, 16));
+		mTimeDely = sf::Time::Zero;
+		mIsDying = true;
 		break;
 	default: break;
 	}
@@ -86,7 +101,7 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 void Projectile::adaptProjectileVelocity(float vx)
 {
 	auto vel = getVelocity();
-	if (std::fabs(vel.x) > std::fabs(vx) || (vel.x * vx) < 0) return;
+	if (vel.x * vx < 0) return;
 	vel.x = vx * 1.5f;
 	setVelocity(vel);
 }

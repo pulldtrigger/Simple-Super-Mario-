@@ -23,17 +23,22 @@ namespace Category
 		SoloCoinBox = 1 << 8,
 		CoinsBox = 1 << 9,
 		TransformBox = 1 << 10,
-		SolidBox = 1 << 11,
+		FireBox = 1 << 11,
+		ShiftBox = 1 << 12,
+		SolidBox = 1 << 13,
 
 		// Item types
-		StaticCoin = 1 << 12,
-		MoveableCoin = 1 << 13,
-		TransformMushroom = 1 << 14,
+		StaticCoin = 1 << 14,
+		MoveableCoin = 1 << 15,
+		Mushroom = 1 << 16,
+		Flower = 1 << 17,
+		Star = 1 << 18,
 
-		Goomba = 1 << 15,
+
+		Goomba = 1 << 19,
 
 
-		OutOfWorld = SmallPlayer | Projectile | Goomba | BigPlayer | TransformMushroom,
-		All = Block | Brick | SoloCoinBox  | CoinsBox | TransformBox | SolidBox | Projectile | StaticCoin | OutOfWorld,
+		OutOfWorld = SmallPlayer | Projectile | Goomba | BigPlayer | Mushroom | Star,
+		All = Block | Brick | SoloCoinBox  | CoinsBox | TransformBox | FireBox | ShiftBox | SolidBox | Flower | Projectile | StaticCoin | OutOfWorld,
 	};
 }

@@ -64,19 +64,19 @@ void World::handleEvent(const sf::Event& event)
 			switch (event.mouseButton.button)
 			{
 			case sf::Mouse::Left:
-				//addPlayer(position);
+				addPlayer(position);
 			//{
 			//	auto item(std::make_unique<Item>(Type::MoveableCoin, mTextures));
 			//	item->setPosition(position + sf::Vector2f(0.f, -10.f));
 			//	item->setVelocity(0.f, -475.f);
 			//	mSceneLayers[Back]->attachChild(std::move(item));
 			//}
-			{
-				auto item(std::make_unique<Item>(Item::TransformMushroom, mTextures));
-				item->setPosition(position);
-				item->setVelocity(40.f, -40.f);
-				mSceneLayers[Back]->attachChild(std::move(item));
-			}
+			//{
+			//	auto item(std::make_unique<Item>(Item::TransformMushroom, mTextures));
+			//	item->setPosition(position);
+			//	item->setVelocity(40.f, -40.f);
+			//	mSceneLayers[Back]->attachChild(std::move(item));
+			//}
 				break;
 			case sf::Mouse::Right:
 				if (isTile)
@@ -125,7 +125,7 @@ void World::update(sf::Time dt)
 {
 	mPlayer.erase( // no more sorrow
 		std::remove_if(mPlayer.begin(), mPlayer.end(), 
-			std::mem_fn(&Projectile::isDestroyed)), 
+			std::mem_fn(&Player::isDestroyed)), 
 		mPlayer.end());
 
 	mPlayerController.handleRealtimeInput(mCommandQueue);
@@ -244,6 +244,18 @@ void World::buildScene()
 			{
 				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
 				addBox(position, Tile::TransformBox);
+			}
+
+			if (object.type == "fire")
+			{
+				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+				addBox(position, Tile::FireBox);
+			}
+
+			if (object.type == "shift")
+			{
+				sf::Vector2f position = { object.position.x + object.size.x / 2.f, object.position.y + object.size.y / 2.f };
+				addBox(position, Tile::ShiftBox);
 			}
 		}
 

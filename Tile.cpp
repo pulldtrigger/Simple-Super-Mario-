@@ -30,8 +30,7 @@ Tile::Tile(Type type, const TextureHolder& textures, sf::Vector2f size)
 	, mElapsedTime(sf::Time::Zero)
 	, mCanAnimate(Table[type].canAnimate)
 	, mCoinsCount()
-	, mCoinCommand()
-	, mTransformCommand()
+	, mCommand()
 	, mIsFired(false)
 	, mCollisionDispatcher()
 	, mUpdater()
@@ -48,9 +47,9 @@ Tile::Tile(Type type, const TextureHolder& textures, sf::Vector2f size)
 		});
 		break;
 	case Type::CoinsBox:
-		mUpdater = std::bind(&Tile::coinsBoxUpdate, this, _1, _2);
-		mCoinCommand.category = Category::BackLayer;
-		mCoinCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::MoveableCoin);
+		mUpdater = std::bind(&Tile::boxUpdate, this, _1, _2);
+		mCommand.category = Category::BackLayer;
+		mCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::MoveableCoin);
 		mCollisionDispatcher.insert({
 			{ Category::BigPlayer, std::bind(&Tile::coinsBoxBigPlayerCollision, this, _1, _2) },
 			{ Category::SmallPlayer, std::bind(&Tile::coinsBoxSmallPlayerCollision, this, _1, _2) },
@@ -58,9 +57,9 @@ Tile::Tile(Type type, const TextureHolder& textures, sf::Vector2f size)
 		});
 		break;
 	case Type::SoloCoinBox:
-		mUpdater = std::bind(&Tile::soloCoinBoxUpdate, this, _1, _2);
-		mCoinCommand.category = Category::BackLayer;
-		mCoinCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::MoveableCoin);
+		mUpdater = std::bind(&Tile::boxUpdate, this, _1, _2);
+		mCommand.category = Category::BackLayer;
+		mCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::MoveableCoin);
 		mCollisionDispatcher.insert({
 			{ Category::BigPlayer, std::bind(&Tile::boxBigPlayerCollision, this, _1, _2) },
 			{ Category::SmallPlayer, std::bind(&Tile::boxSmallPlayerCollision, this, _1, _2) },
@@ -68,15 +67,35 @@ Tile::Tile(Type type, const TextureHolder& textures, sf::Vector2f size)
 		});
 	break;
 	case Type::TransformBox:
-		mUpdater = std::bind(&Tile::transformBoxUpdate, this, _1, _2);
-		mTransformCommand.category = Category::BackLayer;
-		mTransformCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::TransformMushroom);
+		mUpdater = std::bind(&Tile::boxUpdate, this, _1, _2);
+		mCommand.category = Category::BackLayer;
+		mCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::Mushroom);
 		mCollisionDispatcher.insert({
 			{ Category::BigPlayer, std::bind(&Tile::boxBigPlayerCollision, this, _1, _2) },
 			{ Category::SmallPlayer, std::bind(&Tile::boxSmallPlayerCollision, this, _1, _2) },
 			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
 		});
 	break;
+	case Type::FireBox:
+		mUpdater = std::bind(&Tile::boxUpdate, this, _1, _2);
+		mCommand.category = Category::BackLayer;
+		mCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::Flower);
+		mCollisionDispatcher.insert({
+			{ Category::BigPlayer, std::bind(&Tile::boxBigPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Tile::boxSmallPlayerCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
+		});
+		break;
+	case Type::ShiftBox:
+		mUpdater = std::bind(&Tile::boxUpdate, this, _1, _2);
+		mCommand.category = Category::BackLayer;
+		mCommand.action = std::bind(&Tile::createItem, this, _1, std::cref(textures), Item::Star);
+		mCollisionDispatcher.insert({
+			{ Category::BigPlayer, std::bind(&Tile::boxBigPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Tile::boxSmallPlayerCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Tile::enemyCollision, this, _1, _2) },
+		});
+		break;
 	default: break;
 	}
 
@@ -125,6 +144,8 @@ unsigned int Tile::getCategory() const
 		Category::SoloCoinBox,
 		Category::CoinsBox,
 		Category::TransformBox,
+		Category::FireBox,
+		Category::ShiftBox,
 		Category::SolidBox,
 	};
 
@@ -162,28 +183,7 @@ void Tile::brickUpdate(sf::Time dt, CommandQueue& commands)
 	}
 }
 
-void Tile::soloCoinBoxUpdate(sf::Time dt, CommandQueue& commands)
-{
-	mTimer += dt;
-
-	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
-	{
-		move(-mJump);
-		mIsHitBySmallPlayer = false;
-		mCanAnimate = false;
-		mSprite.setTextureRect(Table[mType].idleRect);
-		mCollisionDispatcher.clear();
-		mType = Type::SolidBox;
-	}
-
-	if (mIsFired)
-	{
-		mIsFired = false;
-		commands.push(mCoinCommand);
-	}
-}
-
-void Tile::coinsBoxUpdate(sf::Time dt, CommandQueue& commands)
+void Tile::boxUpdate(sf::Time dt, CommandQueue& commands)
 {
 	mTimer += dt;
 
@@ -201,28 +201,7 @@ void Tile::coinsBoxUpdate(sf::Time dt, CommandQueue& commands)
 	if (mIsFired)
 	{
 		mIsFired = false;
-		commands.push(mCoinCommand);
-	}
-}
-
-void Tile::transformBoxUpdate(sf::Time dt, CommandQueue& commands)
-{
-	mTimer += dt;
-
-	if (mTimer >= sf::seconds(0.25f) && mIsHitBySmallPlayer)
-	{
-		move(-mJump);
-		mIsHitBySmallPlayer = false;
-		mCanAnimate = false;
-		mSprite.setTextureRect(Table[mType].idleRect);
-		mCollisionDispatcher.clear();
-		mType = Type::SolidBox;
-	}
-
-	if (mIsFired)
-	{
-		mIsFired = false;
-		commands.push(mTransformCommand);
+		commands.push(mCommand);
 	}
 }
 
@@ -413,7 +392,23 @@ void Tile::createItem(SceneNode& node, const TextureHolder& textures, Item::Type
 		node.attachChild(std::move(item));
 	}
 	break;
-	case Item::TransformMushroom:
+	case Item::Mushroom:
+	{
+		auto item(std::make_unique<Item>(type, textures));
+		item->setPosition(getWorldPosition());
+		item->setVelocity(0.f, -5.5f);
+		node.attachChild(std::move(item));
+	}
+	break;
+	case Item::Flower:
+	{
+		auto item(std::make_unique<Item>(type, textures));
+		item->setPosition(getWorldPosition());
+		item->setVelocity(0.f, -5.5f);
+		node.attachChild(std::move(item));
+	}
+	break;
+	case Item::Star:
 	{
 		auto item(std::make_unique<Item>(type, textures));
 		item->setPosition(getWorldPosition());

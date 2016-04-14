@@ -15,7 +15,9 @@ public:
 	{
 		StaticCoin,
 		MoveableCoin,
-		TransformMushroom,
+		Mushroom,
+		Flower,
+		Star,
 		TypeCount
 	};
 
@@ -52,24 +54,34 @@ private:
 	unsigned int getFootSenseCount() const override;
 
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
-	void resolveStaticCoin(const sf::Vector3f& manifold, SceneNode* other);
-	void resolveTransformMushroom(const sf::Vector3f& manifold, SceneNode* other);
+	void collisions(const sf::Vector3f& manifold, SceneNode* other);
+	void resolveMushroom(const sf::Vector3f& manifold, SceneNode* other);
 
 	void updateAnimation(sf::Time dt);
 
-	void staticCoinUpdate(sf::Time dt);
 	void moveableCoinUpdate(sf::Time dt);
-	void transformMushroomUpdate(sf::Time dt);
-	void transformMushroomNoneUpdate(sf::Time dt);
-	void transformMushroomAirUpdate(sf::Time dt);
-	void transformMushroomGroundUpdate(sf::Time dt);
+
+	void behaversUpdate(sf::Time dt);
+	void airUpdate(sf::Time dt);
+
+	void mushroomNoneUpdate(sf::Time dt);
+	void mushroomGroundUpdate(sf::Time dt);
+
+	void flowerUpdate(sf::Time dt);
+
+	void starNoneUpdate(sf::Time dt);
 
 	void playerCollision(const sf::Vector3f& manifold, SceneNode* other);
-	void airTransformMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
-	void groundTransformMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void airMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void groundMushroomObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
+
+	void starObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
 
 
 private:
+	static const sf::Vector2f Gravity;
+
 	Type mType;
 	Behavors mBehavors;
 	sf::Sprite mSprite;

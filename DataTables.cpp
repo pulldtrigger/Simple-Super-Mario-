@@ -17,8 +17,14 @@ std::vector<ItemData> data::initializeItemData()
 	data[Item::MoveableCoin].texture = Textures::Items;
 	data[Item::MoveableCoin].textureRect = sf::IntRect(0, 16 * 7, 16, 16);
 
-	data[Item::TransformMushroom].texture = Textures::Items;
-	data[Item::TransformMushroom].textureRect = sf::IntRect(0, 0, 16, 16);
+	data[Item::Mushroom].texture = Textures::Items;
+	data[Item::Mushroom].textureRect = sf::IntRect(0, 0, 16, 16);
+
+	data[Item::Flower].texture = Textures::Items;
+	data[Item::Flower].textureRect = sf::IntRect(0, 16 * 2, 16, 16);
+
+	data[Item::Star].texture = Textures::Items;
+	data[Item::Star].textureRect = sf::IntRect(0, 16 * 3, 16, 16);
 
 	return data;
 }
@@ -63,7 +69,9 @@ std::vector<TileData> data::initializeTileData()
 	data[Tile::SoloCoinBox].textureRect = sf::IntRect(16 * 24, 0, 16, 16);
 	data[Tile::SoloCoinBox].canAnimate = true;
 	data[Tile::SoloCoinBox].idleRect = sf::IntRect(16 * 27, 0, 16, 16);
-	data[Tile::CoinsBox] = data[Tile::TransformBox] = data[Tile::SolidBox] = data[Tile::SoloCoinBox];
+	data[Tile::CoinsBox] = data[Tile::TransformBox] = data[Tile::FireBox] 
+						 = data[Tile::ShiftBox] = data[Tile::SolidBox] 
+						 = data[Tile::SoloCoinBox];
 
 	return data;
 }

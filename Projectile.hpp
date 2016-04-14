@@ -38,4 +38,6 @@ private:
 	Type mType;
 	sf::Sprite mSprite;
 	bool mIsMarkedForRemoval;
+	sf::Time mTimeDely;
+	bool mIsDying;
 };

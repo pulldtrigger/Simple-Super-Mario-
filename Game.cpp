@@ -40,7 +40,7 @@ void Game::processEvents()
 {
 	const static auto initialSize = mWindow.getSize();
 
-	static sf::Event event;
+	sf::Event event;
 
 	while (mWindow.pollEvent(event))
 	{

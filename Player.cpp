@@ -14,6 +14,7 @@ namespace
 {
 	using namespace std::placeholders;
 
+	bool justOnce = true;
 	const static std::vector<PlayerData>& Table = data::initializePlayerData();
 }
 
@@ -37,7 +38,7 @@ Player::Player(Type type, const TextureHolder& textures)
 	, mIsFiring(false)
 	, mBullets()
 	, mTimer(sf::Time::Zero)
-	, mAffects(Shifting)
+	, mAffects(Blinking)
 	, mScaleToggle(true)
 	, mIsDying(false)
 	, mIsSmallPlayerTransformed(false)
@@ -73,13 +74,17 @@ void Player::initialDispatching()
 		{ Category::Brick, std::bind(&Player::airTileCollision, this, _1, _2) },
 		{ Category::Block, std::bind(&Player::airTileCollision, this, _1, _2) },
 		{ Category::TransformBox, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::FireBox, std::bind(&Player::airTileCollision, this, _1, _2) },
+		{ Category::ShiftBox, std::bind(&Player::airTileCollision, this, _1, _2) },
 		{ Category::CoinsBox, std::bind(&Player::airTileCollision, this, _1, _2) },
 		{ Category::SoloCoinBox, std::bind(&Player::airTileCollision, this, _1, _2) },
 		{ Category::SolidBox, std::bind(&Player::airTileCollision, this, _1, _2) },
 		// Enemies
 		{ Category::Goomba, std::bind(&Player::airEnemyCollision, this, _1, _2) },
 		// Items
-		{ Category::TransformMushroom, std::bind(&Player::airItemCollision, this, _1, _2) },
+		{ Category::Mushroom, std::bind(&Player::mushroomCollision, this, _1, _2) },
+		{ Category::Flower, std::bind(&Player::flowerCollision, this, _1, _2) },
+		{ Category::Star, std::bind(&Player::starCollision, this, _1, _2) },
 	});
 
 	Dispatcher groundCollision({
@@ -87,13 +92,17 @@ void Player::initialDispatching()
 		{ Category::Brick, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		{ Category::Block, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		{ Category::TransformBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::FireBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
+		{ Category::ShiftBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		{ Category::CoinsBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		{ Category::SoloCoinBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		{ Category::SolidBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		// Enemies
 		{ Category::Goomba, std::bind(&Player::groundEnemyCollision, this, _1, _2) },
 		// Items
-		{ Category::TransformMushroom, std::bind(&Player::groundItemCollision, this, _1, _2) },
+		{ Category::Mushroom, std::bind(&Player::mushroomCollision, this, _1, _2) },
+		{ Category::Flower, std::bind(&Player::flowerCollision, this, _1, _2) },
+		{ Category::Star, std::bind(&Player::starCollision, this, _1, _2) },
 	});
 
 	mCollisionDispatcher.emplace_back(Behavors::Air, airCollision);
@@ -185,10 +194,23 @@ void Player::airEnemyCollision(const sf::Vector3f& manifold, SceneNode* other)
 	//}
 }
 
-void Player::airItemCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Player::mushroomCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	if (mType == Type::SmallPlayer)
 		applyTransformation();
+}
+
+void Player::flowerCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	if (!justOnce) return;
+	applyFireable(mType);
+	justOnce = false;
+}
+
+void Player::starCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	mAffects = Power | Shifting;
+	mAbilities |= Invincible;
 }
 
 void Player::groundTileCollision(const sf::Vector3f& manifold, SceneNode* other)
@@ -236,12 +258,6 @@ void Player::groundEnemyCollision(const sf::Vector3f& manifold, SceneNode* other
 	}
 }
 
-void Player::groundItemCollision(const sf::Vector3f& manifold, SceneNode* other)
-{
-	if (mType == Type::SmallPlayer)
-		applyTransformation();
-}
-
 unsigned int Player::getCategory() const
 {
 	const static std::array<unsigned int, Type::TypeCount> category
@@ -270,21 +286,16 @@ bool Player::paused()
 
 void Player::applyFireable(Type type, unsigned int ability)
 {
+	mAffects = Shifting;
 	mAbilities |= ability;
-	mJumpRect = Table[type].jumpFireRect;;
-	mDirectionRect = Table[type].directionFireRect;;
-	mIdleRect = Table[type].idleFireRect;;
-	mSprite.setTextureRect(mIdleRect);
-	if (mType != type)
-		setup();
 }
 
 void Player::applyTransformation(Type type, unsigned int affector)
 {
 	mType = type;
-	mJumpRect = Table[type].jumpRect;
-	mDirectionRect = Table[type].directionRect;
-	mIdleRect = Table[type].idleRect;
+	mJumpRect = (mAbilities & Fireable) ? Table[mType].jumpFireRect : Table[mType].jumpRect;
+	mDirectionRect = (mAbilities & Fireable) ? Table[mType].directionFireRect : Table[mType].directionRect;
+	mIdleRect = (mAbilities & Fireable) ? Table[mType].idleFireRect : Table[mType].idleRect;
 
 	mSprite.setTextureRect(mIdleRect); // ugly
 
@@ -388,10 +399,17 @@ void Player::playEffects(sf::Time dt)
 	if (mAffects & Death)
 	{
 		if (mTimer <= sf::seconds(1.5f)) return;
+		mAbilities = Regular;
 		applyTransformation(Type::SmallPlayer);
 		mAffects = Blinking;
 		mTimer = sf::Time::Zero;
 		return;
+	}
+
+	if (mAffects & Power)
+	{
+		if (mTimer <= sf::seconds(5.5f)) return;
+		mAbilities &= ~(Invincible);
 	}
 
 	if (mTimer <= sf::seconds(1.f)) return;
@@ -404,9 +422,9 @@ void Player::playEffects(sf::Time dt)
 
 	if (mAffects & Shifting)
 	{
-		mJumpRect = Table[mType].jumpRect;;
-		mDirectionRect = Table[mType].directionRect;;
-		mIdleRect = Table[mType].idleRect;;
+		mJumpRect = (mAbilities & Fireable) ? Table[mType].jumpFireRect : Table[mType].jumpRect;
+		mDirectionRect = (mAbilities & Fireable) ? Table[mType].directionFireRect : Table[mType].directionRect;
+		mIdleRect = (mAbilities & Fireable) ? Table[mType].idleFireRect : Table[mType].idleRect;
 		mSprite.setTextureRect(mIdleRect);
 	}
 
@@ -481,7 +499,7 @@ void Player::airUpdate(sf::Time dt)
 void Player::groundUpdate(sf::Time dt)
 {
 	auto vel = getVelocity();
-	if (vel.y > 0.f) vel.y = 0.f;
+	vel.y = std::min({}, vel.y);
 	vel.x *= 0.8f;
 	setVelocity(vel);
 
@@ -667,8 +685,6 @@ void Player::checkProjectileLaunch(sf::Time dt, CommandQueue& commands)
 
 void Player::checkProjectiles()
 {
-	using namespace std::placeholders;
-
 	mBullets.erase(std::remove_if(mBullets.begin(), mBullets.end(), std::mem_fn(&Projectile::isDestroyed)), mBullets.end());
 
 	if (mCurrentDirection & Idle) return;
@@ -683,7 +699,7 @@ void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
 	const sf::Vector2f offset(mSprite.getLocalBounds().width / 2.f, -mSprite.getLocalBounds().height / 2.f);
 
 	auto sign = (isRightFace) ? 1.f: -1.f;
-	projectile->setPosition(getWorldPosition() + offset * sign);
+	projectile->setPosition(getWorldPosition() + sf::Vector2f(offset.x * sign, offset.y));
 	projectile->setVelocity(160.f * sign, -40.f);
 
 	mBullets.emplace_back(projectile.get());
