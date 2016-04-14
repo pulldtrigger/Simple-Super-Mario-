@@ -66,10 +66,11 @@ public:
 	void fire();
 	bool paused();
 
-	void applyTransformation(Type type = Type::BigPlayer, unsigned int affector = Scaling);
-	void applyFireable(Type type = Type::BigPlayer, unsigned int ability = Fireable);
-	void applyBigPlayerShifting();
-	void applySmallPlayerShifting();
+	void applyTransformation(Type type = Type::BigPlayer);
+	void applyFireable();
+	void applyInvincible();
+	void applyBigPlayerShifting(sf::Time dt);
+	void applySmallPlayerShifting(sf::Time dt);
 
 
 private:
@@ -138,6 +139,7 @@ private:
 	bool isRightFace;
 
 	unsigned int mAbilities;
+	sf::Time mAbilitiesTime;
 	Command mFireCommand;
 	bool mIsFiring;
 	std::vector<Projectile*> mBullets;

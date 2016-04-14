@@ -97,11 +97,3 @@ void Projectile::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	default: break;
 	}
 }
-
-void Projectile::adaptProjectileVelocity(float vx)
-{
-	auto vel = getVelocity();
-	if (vel.x * vx < 0) return;
-	vel.x = vx * 1.5f;
-	setVelocity(vel);
-}

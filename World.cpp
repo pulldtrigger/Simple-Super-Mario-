@@ -105,7 +105,7 @@ void World::handleEvent(const sf::Event& event)
 			break;
 		case sf::Keyboard::Num4:
 			if (!mPlayer.empty())
-				mPlayer.back()->applyFireable(Player::SmallPlayer);
+				mPlayer.back()->applyInvincible();
 			break;
 		case sf::Keyboard::B:
 			if(isTile)

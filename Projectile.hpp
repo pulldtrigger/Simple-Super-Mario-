@@ -20,8 +20,6 @@ public:
 public:
 	explicit Projectile(Type type, const TextureHolder& textures);
 
-	void adaptProjectileVelocity(float vx);
-
 
 private:
 	void drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const override;

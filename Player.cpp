@@ -34,6 +34,7 @@ Player::Player(Type type, const TextureHolder& textures)
 	, isChangingDirection(false)
 	, isRightFace(true)
 	, mAbilities(Regular)
+	, mAbilitiesTime(sf::Time::Zero)
 	, mFireCommand()
 	, mIsFiring(false)
 	, mBullets()
@@ -203,14 +204,13 @@ void Player::mushroomCollision(const sf::Vector3f& manifold, SceneNode* other)
 void Player::flowerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	if (!justOnce) return;
-	applyFireable(mType);
+	applyFireable();
 	justOnce = false;
 }
 
 void Player::starCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
-	mAffects = Power | Shifting;
-	mAbilities |= Invincible;
+	applyInvincible();
 }
 
 void Player::groundTileCollision(const sf::Vector3f& manifold, SceneNode* other)
@@ -284,13 +284,19 @@ bool Player::paused()
 	return (mAffects & Pause) == Pause;
 }
 
-void Player::applyFireable(Type type, unsigned int ability)
+void Player::applyFireable()
 {
 	mAffects = Shifting;
-	mAbilities |= ability;
+	mAbilities |= Fireable;
 }
 
-void Player::applyTransformation(Type type, unsigned int affector)
+void Player::applyInvincible()
+{
+	mAffects = Power | Shifting;
+	mAbilities |= Invincible;
+}
+
+void Player::applyTransformation(Type type)
 {
 	mType = type;
 	mJumpRect = (mAbilities & Fireable) ? Table[mType].jumpFireRect : Table[mType].jumpRect;
@@ -302,7 +308,7 @@ void Player::applyTransformation(Type type, unsigned int affector)
 	setup();
 
 	if (!(mAffects & (Scaling | Death)))
-		mAffects = affector;
+		mAffects = Scaling;
 }
 
 bool Player::scalingEffect(sf::Time dt, sf::Vector2f targetScale)
@@ -322,38 +328,58 @@ bool Player::scalingEffect(sf::Time dt, sf::Vector2f targetScale)
 	return utility::closeEnough(targetScale.y, resultScale.y, 0.0001f);
 }
 
-void Player::applyBigPlayerShifting()
+void Player::applyBigPlayerShifting(sf::Time dt)
 {
 	auto textureRect = mSprite.getTextureRect();
 
-	const static auto numFrames = 11u;
+	const static auto numFrames = 10u;
 	const static auto textureOffest = 16;
-
+	const static auto animationInterval = sf::seconds(1.f);
+	const static auto animateRate = 15.f;
 	const static auto textureBounds = sf::Vector2i(textureRect.width, (textureRect.height + textureOffest) * numFrames);
 	const static auto startTexture = sf::IntRect(textureRect.left, 0, textureRect.width, textureRect.height);
 
-	if (textureRect.top + textureRect.height < textureBounds.y)
-		textureRect.top += textureRect.height + textureOffest;
-	else
-		textureRect = startTexture;
+	if (mAbilitiesTime <= sf::Time::Zero)
+	{
+		mAbilitiesTime += animationInterval / animateRate;
+
+		if (textureRect.top + textureRect.height < textureBounds.y)
+			textureRect.top += textureRect.height + textureOffest;
+		else
+			textureRect = startTexture;
+	}
+	else 
+	{
+		mAbilitiesTime -= dt;
+	}
 
 	mSprite.setTextureRect(textureRect);
 }
 
-void Player::applySmallPlayerShifting()
+void Player::applySmallPlayerShifting(sf::Time dt)
 {
 	auto textureRect = mSprite.getTextureRect();
 
-	const static auto numFrames = 11u;
+	const static auto numFrames = 10u;
 	const static auto textureOffest = 32;
-
+	const static auto animationInterval = sf::seconds(1.f);
+	const static auto animateRate = 15.f;
 	const static auto textureBounds = sf::Vector2i(textureRect.width, (textureRect.height + textureOffest) * numFrames);
 	const static auto startTexture = sf::IntRect(textureRect.left, textureOffest, textureRect.width, textureRect.height);
 
-	if (textureRect.top + textureRect.height < textureBounds.y)
-		textureRect.top += textureRect.height + textureOffest;
+	if (mAbilitiesTime <= sf::Time::Zero)
+	{
+		mAbilitiesTime += animationInterval / animateRate;
+
+		if (textureRect.top + textureRect.height < textureBounds.y)
+			textureRect.top += textureRect.height + textureOffest;
+		else
+			textureRect = startTexture;
+	}
 	else
-		textureRect = startTexture;
+	{
+		mAbilitiesTime -= dt;
+	}
 
 	mSprite.setTextureRect(textureRect);
 }
@@ -386,11 +412,11 @@ void Player::playEffects(sf::Time dt)
 	{
 		if (mType == Type::BigPlayer)
 		{
-			applyBigPlayerShifting();
+			applyBigPlayerShifting(dt);
 		}
 		else
 		{
-			applySmallPlayerShifting();
+			applySmallPlayerShifting(dt);
 		}
 	}
 
@@ -639,10 +665,10 @@ void Player::updateAnimation(sf::Time dt)
 	}
 
 	auto textureRect = mSprite.getTextureRect();
+	auto animateRate = (mAbilities & Invincible) ? 25.f : 15.f;
 	const static auto numFrames = 3u;
 	const static auto textureOffest = textureRect.left + textureRect.width;
 	const static auto animationInterval = sf::seconds(1.f);
-	const static auto animateRate = 10.f;
 	const static auto textureBounds = sf::Vector2i(textureRect.width * numFrames, textureRect.height);
 	const auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
 
@@ -686,10 +712,6 @@ void Player::checkProjectileLaunch(sf::Time dt, CommandQueue& commands)
 void Player::checkProjectiles()
 {
 	mBullets.erase(std::remove_if(mBullets.begin(), mBullets.end(), std::mem_fn(&Projectile::isDestroyed)), mBullets.end());
-
-	if (mCurrentDirection & Idle) return;
-
-	std::for_each(mBullets.begin(), mBullets.end(), std::bind(&Projectile::adaptProjectileVelocity, _1, getVelocity().x));
 }
 
 void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
@@ -700,7 +722,7 @@ void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
 
 	auto sign = (isRightFace) ? 1.f: -1.f;
 	projectile->setPosition(getWorldPosition() + sf::Vector2f(offset.x * sign, offset.y));
-	projectile->setVelocity(160.f * sign, -40.f);
+	projectile->setVelocity(getVelocity().x + 160.f * sign, -40.f);
 
 	mBullets.emplace_back(projectile.get());
 
