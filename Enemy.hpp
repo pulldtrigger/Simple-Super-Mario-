@@ -52,13 +52,13 @@ private:
 	unsigned int getFootSenseCount() const override;
 
 	void resolve(const sf::Vector3f& manifold, SceneNode* otherType) override;
-	void resolveGoomba(const sf::Vector3f& manifold, SceneNode* other);
+	void resolveEnemy(const sf::Vector3f& manifold, SceneNode* other);
 
-	void airGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
-	void groundGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void airPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void groundPlayerCollision(const sf::Vector3f& manifold, SceneNode* other);
 
-	void airGoombaObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
-	void groundGoombaObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void airObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
+	void groundObjectsCollision(const sf::Vector3f& manifold, SceneNode* other);
 
 	void projectileCollision(const sf::Vector3f& manifold, SceneNode* other);
 
@@ -68,9 +68,10 @@ private:
 	void updateAnimation(sf::Time dt);
 
 	void behaversUpdate(sf::Time dt);
-	void goombaGroundUpdate(sf::Time dt);
-	void goombaDyingUpdate(sf::Time dt);
+	void groundUpdate(sf::Time dt);
+	void dyingUpdate(sf::Time dt);
 
+	void setUp();
 
 private:
 	static const sf::Vector2f Gravity;
@@ -93,4 +94,5 @@ private:
 	DispatchHolder mCollisionDispatcher;
 	Function mCollision;
 	Dispatcher mBehaversCollision;
+	//DeathHolder mDeathDispatcher;
 };

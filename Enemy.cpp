@@ -37,47 +37,52 @@ Enemy::Enemy(Type type, const TextureHolder& textures)
 	switch (mType)
 	{
 	case Type::Goomba:
+	case Type::Troopa:
 	{
 		mUpdater = std::bind(&Enemy::behaversUpdate, this, _1);
-		mUpdateDispatcher.emplace_back(Behavors::Ground, std::bind(&Enemy::goombaGroundUpdate, this, _1));
-		mUpdateDispatcher.emplace_back(Behavors::Dying, std::bind(&Enemy::goombaDyingUpdate, this, _1));
+		mUpdateDispatcher.emplace_back(Behavors::Ground, std::bind(&Enemy::groundUpdate, this, _1));
+		mUpdateDispatcher.emplace_back(Behavors::Dying, std::bind(&Enemy::dyingUpdate, this, _1));
 		if (mUpdateDispatcher.capacity() > mUpdateDispatcher.size())
 		{
 			mUpdateDispatcher.shrink_to_fit();
 		}
-		mCollision = std::bind(&Enemy::resolveGoomba, this, _1, _2);
+		mCollision = std::bind(&Enemy::resolveEnemy, this, _1, _2);
 		Dispatcher airCollision({
 			// Tiles
-			{ Category::Brick, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
-			{ Category::Block, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
-			{ Category::TransformBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
-			{ Category::CoinsBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
-			{ Category::SoloCoinBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
-			{ Category::SolidBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::Brick, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
 			// Enemies
-			{ Category::Goomba, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::Troopa, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
+			{ Category::Shell, std::bind(&Enemy::airObjectsCollision, this, _1, _2) },
 			// Projectile
 			{ Category::Projectile, std::bind(&Enemy::projectileCollision, this, _1, _2) },
 			// Player
-			{ Category::BigPlayer, std::bind(&Enemy::airGoombaPlayerCollision, this, _1, _2) },
-			{ Category::SmallPlayer, std::bind(&Enemy::airGoombaPlayerCollision, this, _1, _2) },
+			{ Category::BigPlayer, std::bind(&Enemy::airPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Enemy::airPlayerCollision, this, _1, _2) },
 		});
 
 		Dispatcher groundCollision({
 			// Tiles
-			{ Category::Brick, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
-			{ Category::Block, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
-			{ Category::TransformBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
-			{ Category::CoinsBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
-			{ Category::SoloCoinBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
-			{ Category::SolidBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::Brick, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
 			// Enemies
-			{ Category::Goomba, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::Goomba, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::Troopa, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
+			{ Category::Shell, std::bind(&Enemy::groundObjectsCollision, this, _1, _2) },
 			// Projectile
 			{ Category::Projectile, std::bind(&Enemy::projectileCollision, this, _1, _2) },
 			// Player
-			{ Category::BigPlayer, std::bind(&Enemy::groundGoombaPlayerCollision, this, _1, _2) },
-			{ Category::SmallPlayer, std::bind(&Enemy::groundGoombaPlayerCollision, this, _1, _2) },
+			{ Category::BigPlayer, std::bind(&Enemy::groundPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Enemy::groundPlayerCollision, this, _1, _2) },
 		});
 
 		mCollisionDispatcher.emplace_back(Behavors::Air, airCollision);
@@ -88,17 +93,17 @@ Enemy::Enemy(Type type, const TextureHolder& textures)
 		}
 	}
 	break;
-	case Type::Troopa:
-
-		break;
-	case Type::Shell:
-
-	break;
 	case Type::Plant:
 
 		break;
 	default: break;
 	}
+
+	setUp();
+}
+
+void Enemy::setUp()
+{
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height);
 
@@ -152,7 +157,10 @@ bool Enemy::isDying() const
 
 void Enemy::behaversUpdate(sf::Time dt)
 {
-	accelerate(Gravity);
+	if (mType == Type::Shell)
+		accelerate({ 0.f, 1485.f });
+	else
+		accelerate(Gravity);
 
 	for (const auto& behavor : mUpdateDispatcher)
 	{
@@ -162,17 +170,18 @@ void Enemy::behaversUpdate(sf::Time dt)
 	}
 }
 
-void Enemy::goombaGroundUpdate(sf::Time dt)
+void Enemy::groundUpdate(sf::Time dt)
 {
 	auto vel = getVelocity();
 	vel.y = std::min({}, vel.y);
 	setVelocity(vel);
-	if (getFootSenseCount() == 0) { mBehavors = Air; };
+
+	if (getFootSenseCount() == 0) {	mBehavors = Air; };
 
 	updateAnimation(dt);
 }
 
-void Enemy::goombaDyingUpdate(sf::Time dt)
+void Enemy::dyingUpdate(sf::Time dt)
 {
 	if (!mIsCrushed) return;
 
@@ -188,8 +197,6 @@ void Enemy::goombaDyingUpdate(sf::Time dt)
 
 void Enemy::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
-	static const sf::Vector2f Gravity(0.f, 25.f);
-
 	if (isDestroyed())
 	{
 		std::cout << "Enemy died\n";
@@ -232,7 +239,7 @@ void Enemy::resolve(const sf::Vector3f& manifold, SceneNode* other)
 	if (mCollision) mCollision(manifold, other);
 }
 
-void Enemy::resolveGoomba(const sf::Vector3f& manifold, SceneNode* other)
+void Enemy::resolveEnemy(const sf::Vector3f& manifold, SceneNode* other)
 {
 	for (const auto& behavor : mCollisionDispatcher)
 	{
@@ -248,7 +255,7 @@ void Enemy::resolveGoomba(const sf::Vector3f& manifold, SceneNode* other)
 	}
 }
 
-void Enemy::airGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Enemy::airPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	const static auto crushed = Table[mType].crushedRect;
 
@@ -263,15 +270,31 @@ void Enemy::airGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* ot
 	{
 		if (manifold.y != 0)
 		{
-			mSprite.setTextureRect(crushed);
-			mIsDying = true;
-			mIsCrushed = true;
-			mBehavors = Dying;
+			if (mType == Type::Goomba)
+			{
+				mSprite.setTextureRect(crushed);
+				mIsDying = true;
+				mIsCrushed = true;
+				mBehavors = Dying;
+			}
+			else if (mType == Type::Troopa)
+			{
+				mType = Type::Shell;
+				mSprite.setTextureRect(Table[mType].textureRect);
+				mIsCrushed = true;
+				setUp();
+				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+			}
+			else if (mType == Type::Shell)
+			{
+				mIsCrushed = false;
+				setVelocity(other->isPlayerRightFace() ? +400 : -400.f, 0.f);
+			}
 		}
 	}
 }
 
-void Enemy::groundGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Enemy::groundPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	const static auto crushed = Table[mType].crushedRect;
 
@@ -285,10 +308,27 @@ void Enemy::groundGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode*
 	{
 		if (manifold.y != 0)
 		{
-			mSprite.setTextureRect(crushed);
-			mIsDying = true;
-			mIsCrushed = true;
-			mBehavors = Dying;
+			if (mType == Type::Goomba)
+			{
+				mSprite.setTextureRect(crushed);
+				mIsDying = true;
+				mIsCrushed = true;
+				mBehavors = Dying;
+			}
+			else if (mType == Type::Troopa)
+			{
+				mType = Type::Shell;
+				mSprite.setTextureRect(Table[mType].textureRect);
+				mIsCrushed = true;
+				setUp();
+				move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
+			}
+			else if (mType == Type::Shell)
+			{
+				mIsCrushed = false;
+				setVelocity(other->isPlayerRightFace() ? +400 : -400.f, 0.f);
+				move(sf::Vector2f(manifold.x, manifold.y) * -manifold.z);
+			}
 
 			// it works here, at last player pouce if collide with goomba from top
 			// NOTE: for some unknown reasons, it doesn't work if i implemented this on player side
@@ -299,23 +339,49 @@ void Enemy::groundGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode*
 	}
 }
 
-void Enemy::airGoombaObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Enemy::airObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
-	//if (Enemy::Goomba & other->getCategory()) return;
-
 	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 	mBehavors = Ground;
+	if (manifold.x != 0)
+	{
+		if (mType == Type::Shell && (other->getCategory() & (Category::Block | Category::Brick)))
+		{
+			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+
+			auto vel = getVelocity();
+			vel.x = -vel.x;
+			setVelocity(vel);
+		}
+	}
 }
 
-void Enemy::groundGoombaObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+void Enemy::groundObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
 	//move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
 	if (manifold.x != 0)
 	{
+		if (other->getCategory() & Category::Shell)
+		{
+			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+			die();
+			return;
+		}
+
+		if (mType == Enemy::Troopa)
+		{
+			auto scale = mSprite.getScale();
+			scale.x = -scale.x;
+			mSprite.setScale(scale);
+		}
+
+		if (mType == Type::Shell && !(other->getCategory() & (Category::Block | Category::Brick))) return;
+
 		auto vel = getVelocity();
 		vel.x = -vel.x;
 		setVelocity(vel);
 	}
+
 }
 
 void Enemy::projectileCollision(const sf::Vector3f& manifold, SceneNode* other)
@@ -327,12 +393,13 @@ void Enemy::projectileCollision(const sf::Vector3f& manifold, SceneNode* other)
 void Enemy::updateAnimation(sf::Time dt)
 {
 	auto textureRect = mSprite.getTextureRect();
+
+	const auto textureOffest = Table[mType].offset;
+	const auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
 	const static auto numFrames = 2u;
-	const static auto textureOffest = 0;
 	const static auto animationInterval = sf::seconds(1.f);
 	const static auto animateRate = 5.f;
 	const static auto textureBounds = sf::Vector2i(textureRect.width * numFrames, textureRect.height);
-	const static auto startTexture = sf::IntRect(textureOffest, textureRect.top, textureRect.width, textureRect.height);
 
 	if (mElapsedTime <= sf::Time::Zero)
 	{

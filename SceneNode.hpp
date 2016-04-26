@@ -59,7 +59,7 @@ public:
 	virtual void setVelocity(float vx, float vy);
 	virtual void setVelocity(sf::Vector2f velocity);
 	virtual sf::Vector2f getVelocity() const;
-
+	virtual bool isPlayerRightFace() const;
 
 private:
 	virtual void updateCurrent(sf::Time dt, CommandQueue& commands);

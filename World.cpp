@@ -12,7 +12,7 @@
 //#define Debug
 namespace
 {
-	bool isTile = false;
+	bool isTroopa = true;
 	sf::Vector3f getManifold(const SceneNode::Pair& node)
 	{
 		const auto normal = node.second->getWorldPosition() - node.first->getWorldPosition();
@@ -79,8 +79,8 @@ void World::handleEvent(const sf::Event& event)
 			//}
 				break;
 			case sf::Mouse::Right:
-				if (isTile)
-					addBrick(position);
+				if (isTroopa)
+					addTroopa(position);
 				else
 					addGoomba(position);
 				break;
@@ -108,10 +108,7 @@ void World::handleEvent(const sf::Event& event)
 				mPlayer.back()->applyInvincible();
 			break;
 		case sf::Keyboard::B:
-			if(isTile)
-				isTile = !isTile;
-			else
-				isTile = !isTile;
+			isTroopa = !isTroopa;
 			break;
 		default:break;
 		}
@@ -292,6 +289,14 @@ void World::addGoomba(sf::Vector2f position)
 	goomba->setPosition(position);
 	goomba->setVelocity(-40.f, 0.f);
 	mSceneLayers[Front]->attachChild(std::move(goomba));
+}
+
+void World::addTroopa(sf::Vector2f position)
+{
+	auto troopa(std::make_unique<Enemy>(Enemy::Troopa, mTextures));
+	troopa->setPosition(position);
+	troopa->setVelocity(-40.f, 0.f);
+	mSceneLayers[Front]->attachChild(std::move(troopa));
 }
 
 void World::addBrick(sf::Vector2f position)

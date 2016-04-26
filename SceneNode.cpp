@@ -171,3 +171,8 @@ sf::Vector2f SceneNode::getVelocity() const
 { 
 	return{};
 }
+
+bool SceneNode::isPlayerRightFace() const
+{
+	return false;
+}

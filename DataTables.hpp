@@ -20,6 +20,7 @@ struct EnemyData
 	Textures::ID		texture;
 	sf::IntRect			textureRect;
 	sf::IntRect			crushedRect;
+	int					offset;
 };
 
 struct PlayerData

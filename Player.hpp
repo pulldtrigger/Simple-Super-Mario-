@@ -118,6 +118,7 @@ private:
 	void groundUpdate(sf::Time dt);
 	void dyingUpdate(sf::Time dt);
 
+	bool isPlayerRightFace() const override;
 
 private:
 	Type mType;

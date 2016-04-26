@@ -56,6 +56,7 @@ private:
 
 	void addPlayer(sf::Vector2f position);
 	void addGoomba(sf::Vector2f position);
+	void addTroopa(sf::Vector2f position);
 	void addBrick(sf::Vector2f position);
 	void addBox(sf::Vector2f position, Tile::Type type, unsigned int count = 0);
 	void addBlock(sf::Vector2f position, sf::Vector2f size);

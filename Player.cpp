@@ -81,6 +81,8 @@ void Player::initialDispatching()
 		{ Category::SolidBox, std::bind(&Player::airTileCollision, this, _1, _2) },
 		// Enemies
 		{ Category::Goomba, std::bind(&Player::airEnemyCollision, this, _1, _2) },
+		{ Category::Troopa, std::bind(&Player::airEnemyCollision, this, _1, _2) },
+		{ Category::Shell, std::bind(&Player::airEnemyCollision, this, _1, _2) },
 		// Items
 		{ Category::Mushroom, std::bind(&Player::mushroomCollision, this, _1, _2) },
 		{ Category::Flower, std::bind(&Player::flowerCollision, this, _1, _2) },
@@ -99,6 +101,8 @@ void Player::initialDispatching()
 		{ Category::SolidBox, std::bind(&Player::groundTileCollision, this, _1, _2) },
 		// Enemies
 		{ Category::Goomba, std::bind(&Player::groundEnemyCollision, this, _1, _2) },
+		{ Category::Troopa, std::bind(&Player::groundEnemyCollision, this, _1, _2) },
+		{ Category::Shell, std::bind(&Player::groundEnemyCollision, this, _1, _2) },
 		// Items
 		{ Category::Mushroom, std::bind(&Player::mushroomCollision, this, _1, _2) },
 		{ Category::Flower, std::bind(&Player::flowerCollision, this, _1, _2) },
@@ -727,4 +731,9 @@ void Player::createProjectile(SceneNode& node, const TextureHolder& textures)
 	mBullets.emplace_back(projectile.get());
 
 	node.attachChild(std::move(projectile));
+}
+
+bool Player::isPlayerRightFace() const
+{
+	return isRightFace;
 }

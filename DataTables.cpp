@@ -35,14 +35,17 @@ std::vector<EnemyData> data::initializeEnemyData()
 	data[Enemy::Goomba].texture = Textures::Enemies;
 	data[Enemy::Goomba].textureRect = { 0, 16, 16, 16 };
 	data[Enemy::Goomba].crushedRect = { 16 * 2, 16, 16, 16 };
+	data[Enemy::Goomba].offset = 0;
 
 	data[Enemy::Troopa].texture = Textures::Enemies;
-	data[Enemy::Troopa].textureRect = { 0, 16, 16, 16 };
+	data[Enemy::Troopa].textureRect = { 16 * 6, 0, 16, 32 };
 	data[Enemy::Troopa].crushedRect = { 16 * 2, 16, 16, 16 };
+	data[Enemy::Troopa].offset = 16 * 6;
 
 	data[Enemy::Shell].texture = Textures::Enemies;
-	data[Enemy::Shell].textureRect = { 0, 16, 16, 16 };
+	data[Enemy::Shell].textureRect = { 16 * 10, 16, 16, 16 };
 	data[Enemy::Shell].crushedRect = { 16 * 2, 16, 16, 16 };
+	data[Enemy::Shell].offset = 16 * 10;
 
 	data[Enemy::Plant].texture = Textures::Enemies;
 	data[Enemy::Plant].textureRect = { 0, 16, 16, 16 };
