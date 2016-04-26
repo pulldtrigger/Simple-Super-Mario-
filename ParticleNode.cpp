@@ -9,15 +9,7 @@
 
 namespace
 {
-	static auto index = 0;
 	const static auto lifetime = sf::seconds(2.5f);
-	const static std::vector<sf::Vector2f> splatVelocities =
-	{
-		{ -50.f, -120.f },
-		{  50.f, -120.f },
-		{ -70.f, -90.f },
-		{  70.f, -90.f },
-	};
 }
 
 
@@ -32,9 +24,20 @@ ParticleNode::ParticleNode(Particle::Type type, const TextureHolder& textures)
 
 void ParticleNode::addParticle(sf::Vector2f position)
 {
+	static auto index = 0u;
+	const static std::vector<sf::Vector2f> splatVelocities =
+	{
+		{ -50.f, -120.f },
+		{  50.f, -120.f },
+		{ -70.f, -90.f },
+		{  70.f, -90.f },
+	};
+
 	Particle particle;
-	particle.setPosition(position);
+	particle.position = position;
 	particle.velocity = splatVelocities[index++ % splatVelocities.size()];
+	particle.rotation = 45.f;
+	particle.rotationSpeed = 0.f;
 	particle.color = sf::Color(255, 255, 50);
 	particle.lifetime = lifetime;
 
@@ -67,7 +70,9 @@ void ParticleNode::updateCurrent(sf::Time dt, CommandQueue& commands)
 	for (auto& particle : mParticles)
 	{
 		particle.lifetime -= dt;
-		particle.move(particle.velocity * dt.asSeconds());
+		particle.position += dt.asSeconds() * particle.velocity;
+		particle.rotation += dt.asSeconds() * particle.rotationSpeed;
+
 		for (const auto& affector : mAffectors)
 			affector(particle, dt);
 	}
@@ -108,12 +113,14 @@ void ParticleNode::computeVertices() const
 	mVertexArray.clear();
 	for (const auto& particle : mParticles)
 	{
+		sf::Transform transform;
+		transform.translate(particle.position);
+		transform.rotate(particle.rotation);
 		auto color = particle.color;
 
 		auto ratio = particle.lifetime.asSeconds() / lifetime.asSeconds();
 		color.a = static_cast<sf::Uint8>(255 * std::max(ratio, 0.f));
 
-		auto transform = particle.getTransform();
 		addVertex(transform.transformPoint(-half.x, -half.y), { 0.f,	0.f	   }, color);
 		addVertex(transform.transformPoint( half.x, -half.y), { size.x,	0.f    }, color);
 		addVertex(transform.transformPoint( half.x,  half.y), { size.x,	size.y }, color);

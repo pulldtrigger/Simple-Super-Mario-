@@ -14,7 +14,6 @@ namespace
 {
 	using namespace std::placeholders;
 
-	bool justOnce = true;
 	const static std::vector<PlayerData>& Table = data::initializePlayerData();
 }
 
@@ -203,6 +202,7 @@ void Player::mushroomCollision(const sf::Vector3f& manifold, SceneNode* other)
 
 void Player::flowerCollision(const sf::Vector3f& manifold, SceneNode* other)
 {
+	static bool justOnce = true;
 	if (!justOnce) return;
 	applyFireable();
 	justOnce = false;

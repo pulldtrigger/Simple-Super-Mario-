@@ -3,8 +3,10 @@
 #include "ResourceHolder.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
+
 #include <array>
 #include <iostream>
+
 #define Debug
 
 namespace
@@ -169,12 +171,8 @@ void Item::moveableCoinUpdate(sf::Time dt)
 {
 	accelerate(Gravity);
 
-	auto vel = getVelocity();
-	if (vel.y > 350.f)
-	{
+	if (getVelocity().y > 350.f)
 		destroy();
-		return;
-	}
 }
 
 void Item::behaversUpdate(sf::Time dt)

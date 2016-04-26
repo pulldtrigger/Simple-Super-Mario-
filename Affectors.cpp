@@ -20,5 +20,5 @@ RotateAffector::RotateAffector(float rotation)
 
 void RotateAffector::operator() (Particle& particle, sf::Time dt)
 {
-	particle.rotate(mRotation * dt.asSeconds());
+	particle.rotationSpeed += dt.asSeconds() * mRotation;
 }

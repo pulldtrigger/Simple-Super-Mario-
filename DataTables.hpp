@@ -15,6 +15,13 @@ struct ItemData
 	sf::IntRect			textureRect;
 };
 
+struct EnemyData
+{
+	Textures::ID		texture;
+	sf::IntRect			textureRect;
+	sf::IntRect			crushedRect;
+};
+
 struct PlayerData
 {
 	Textures::ID		texture;
@@ -37,6 +44,7 @@ struct TileData
 namespace data
 {
 	std::vector<ItemData>		initializeItemData();
+	std::vector<EnemyData>		initializeEnemyData();
 	std::vector<PlayerData>		initializePlayerData();
 	std::vector<TileData>		initializeTileData();
 }

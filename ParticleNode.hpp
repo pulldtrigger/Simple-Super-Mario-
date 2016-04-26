@@ -14,7 +14,7 @@
 
 class ParticleNode final : public SceneNode
 {
-	using Affector = std::function<void(Particle& p, sf::Time dt)>;
+	using Affector = std::function<void(Particle&, sf::Time)>;
 
 
 public:
@@ -28,7 +28,8 @@ public:
 	template <typename T>
 	void addAffector(const T& affector)
 	{
-		mAffectors.emplace_back(std::bind(affector, std::placeholders::_1, std::placeholders::_2));
+		using namespace std::placeholders;
+		mAffectors.emplace_back(std::bind(affector, _1, _2));
 	}
 
 	void emit(sf::Vector2f position);

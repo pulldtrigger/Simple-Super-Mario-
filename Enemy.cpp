@@ -1,24 +1,104 @@
 #include "Enemy.hpp"
 #include "ResourceHolder.hpp"
 #include "CommandQueue.hpp"
+#include "DataTables.hpp"
 #include "Player.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
+
 #include <algorithm>
 #include <functional>
+#include<array>
 
-//#define Debug
+#define Debug
+
+namespace
+{
+	using namespace std::placeholders;
+	const static std::vector<EnemyData>& Table = data::initializeEnemyData();
+}
+
+const sf::Vector2f Enemy::Gravity(0.f, 25.f);
 
 Enemy::Enemy(Type type, const TextureHolder& textures)
 	: mType(type)
 	, mBehavors(Air)
-	, mSprite(textures.get(Textures::Enemies), sf::IntRect(0, 16, 16, 16))
+	, mSprite(textures.get(Table[type].texture), Table[type].textureRect)
 	, mFootSenseCount()
 	, mIsMarkedForRemoval(false)
 	, mElapsedTime(sf::Time::Zero)
 	, mIsDying(false)
 	, mIsCrushed(false)
+	, mUpdateDispatcher()
+	, mUpdater()
+	, mCollisionDispatcher()
+	, mCollision()
 {
+	switch (mType)
+	{
+	case Type::Goomba:
+	{
+		mUpdater = std::bind(&Enemy::behaversUpdate, this, _1);
+		mUpdateDispatcher.emplace_back(Behavors::Ground, std::bind(&Enemy::goombaGroundUpdate, this, _1));
+		mUpdateDispatcher.emplace_back(Behavors::Dying, std::bind(&Enemy::goombaDyingUpdate, this, _1));
+		if (mUpdateDispatcher.capacity() > mUpdateDispatcher.size())
+		{
+			mUpdateDispatcher.shrink_to_fit();
+		}
+		mCollision = std::bind(&Enemy::resolveGoomba, this, _1, _2);
+		Dispatcher airCollision({
+			// Tiles
+			{ Category::Brick, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			// Enemies
+			{ Category::Goomba, std::bind(&Enemy::airGoombaObjectsCollision, this, _1, _2) },
+			// Projectile
+			{ Category::Projectile, std::bind(&Enemy::projectileCollision, this, _1, _2) },
+			// Player
+			{ Category::BigPlayer, std::bind(&Enemy::airGoombaPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Enemy::airGoombaPlayerCollision, this, _1, _2) },
+		});
+
+		Dispatcher groundCollision({
+			// Tiles
+			{ Category::Brick, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::Block, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::TransformBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::CoinsBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::SoloCoinBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			{ Category::SolidBox, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			// Enemies
+			{ Category::Goomba, std::bind(&Enemy::groundGoombaObjectsCollision, this, _1, _2) },
+			// Projectile
+			{ Category::Projectile, std::bind(&Enemy::projectileCollision, this, _1, _2) },
+			// Player
+			{ Category::BigPlayer, std::bind(&Enemy::groundGoombaPlayerCollision, this, _1, _2) },
+			{ Category::SmallPlayer, std::bind(&Enemy::groundGoombaPlayerCollision, this, _1, _2) },
+		});
+
+		mCollisionDispatcher.emplace_back(Behavors::Air, airCollision);
+		mCollisionDispatcher.emplace_back(Behavors::Ground, groundCollision);
+		if (mCollisionDispatcher.capacity() > mCollisionDispatcher.size())
+		{
+			mCollisionDispatcher.shrink_to_fit();
+		}
+	}
+	break;
+	case Type::Troopa:
+
+		break;
+	case Type::Shell:
+
+	break;
+	case Type::Plant:
+
+		break;
+	default: break;
+	}
 	auto bounds = mSprite.getLocalBounds();
 	mSprite.setOrigin(bounds.width / 2.f, bounds.height);
 
@@ -34,10 +114,15 @@ Enemy::Enemy(Type type, const TextureHolder& textures)
 
 unsigned int Enemy::getCategory() const
 {
-	if(mType == Type::Goomba)
-		return Category::Goomba;
+	const static std::array<unsigned int, Type::TypeCount> category
+	{
+		Category::Goomba,
+		Category::Troopa,
+		Category::Shell,
+		Category::Plant,
+	};
 
-	return Category::None;
+	return category[mType];
 }
 
 bool Enemy::isMarkedForRemoval() const
@@ -65,55 +150,58 @@ bool Enemy::isDying() const
 	return mIsDying;
 }
 
+void Enemy::behaversUpdate(sf::Time dt)
+{
+	accelerate(Gravity);
+
+	for (const auto& behavor : mUpdateDispatcher)
+	{
+		if (behavor.first != mBehavors) continue;
+
+		behavor.second(dt);
+	}
+}
+
+void Enemy::goombaGroundUpdate(sf::Time dt)
+{
+	auto vel = getVelocity();
+	vel.y = std::min({}, vel.y);
+	setVelocity(vel);
+	if (getFootSenseCount() == 0) { mBehavors = Air; };
+
+	updateAnimation(dt);
+}
+
+void Enemy::goombaDyingUpdate(sf::Time dt)
+{
+	if (!mIsCrushed) return;
+
+	auto vel = getVelocity();
+	vel.y = std::min({}, vel.y);
+	setVelocity(vel);
+
+	mDyingTimer += dt;
+
+	if (mDyingTimer >= sf::seconds(1))
+		destroy();
+}
+
 void Enemy::updateCurrent(sf::Time dt, CommandQueue& commands)
 {
 	static const sf::Vector2f Gravity(0.f, 25.f);
 
 	if (isDestroyed())
 	{
-		std::cout << "Goomba died\n";
+		std::cout << "Enemy died\n";
 		mIsMarkedForRemoval = true;
 		return;
 	}
 
-	accelerate(Gravity);
+	if (mUpdater) mUpdater(dt);
 
-	switch (mBehavors)
-	{
-	case Behavors::Air:
-	{
-		// just fall
-		//accelerate(Gravity);
-	}
-	break;
-	case Behavors::Ground:
-	{
-		auto vel = getVelocity();
-		vel.y = std::min({}, vel.y);
-		setVelocity(vel);
-		if (getFootSenseCount() == 0) { mBehavors = Air; };
+	if (mIsCrushed) return;
 
-		updateAnimation(dt);
-	}
-	break;
-	case Behavors::Dying:
-		if (mIsCrushed)
-		{
-			auto vel = getVelocity();
-			vel.y = std::min({}, vel.y);
-			setVelocity(vel);
-			mDyingTimer += dt;
-			if (mDyingTimer >= sf::seconds(1))
-				destroy();
-		}
-	break;
-	default: break;
-	}
-
-	if (!mIsCrushed)
-	{
-		Entity::updateCurrent(dt, commands);
-	}
+	Entity::updateCurrent(dt, commands);
 }
 
 void Enemy::drawCurrent(sf::RenderTarget& target, sf::RenderStates states) const
@@ -141,106 +229,99 @@ unsigned int Enemy::getFootSenseCount() const
 
 void Enemy::resolve(const sf::Vector3f& manifold, SceneNode* other)
 {
-	const static sf::IntRect crushed(16 * 2, 16, 16, 16);
+	if (mCollision) mCollision(manifold, other);
+}
 
-	switch (mBehavors)
+void Enemy::resolveGoomba(const sf::Vector3f& manifold, SceneNode* other)
+{
+	for (const auto& behavor : mCollisionDispatcher)
 	{
-	case Behavors::Air:
-		switch (other->getCategory())
+		if (behavor.first != mBehavors) continue;
+
+		for (const auto& collider : behavor.second)
 		{
-		case Category::SolidBox:
-		case Category::CoinsBox:
-		case Category::SoloCoinBox:
-		case Category::TransformBox:
-		case Category::Brick:
-		case Category::Block:
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			mBehavors = Ground;
-			break;
-		case Category::Projectile:
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			die();
-			break;
-		case Category::SmallPlayer:
-		case Category::BigPlayer:
-			if (other->isDying()) break;
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (other->getAbilities() & Player::Invincible)
+			if (collider.first & other->getCategory())
 			{
-				move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-				die();
+				collider.second(manifold, other);
 			}
-			else
-			{
-				if (manifold.y != 0)
-				{
-					mSprite.setTextureRect(crushed);
-					mIsDying = true;
-					mIsCrushed = true;
-					mBehavors = Dying;
-				}
-			}
-
-		break;
-		default: break;
 		}
-		break;
-
-	case Behavors::Ground:
-		switch (other->getCategory())
-		{
-		case Category::SolidBox:
-		case Category::CoinsBox:
-		case Category::SoloCoinBox:
-		case Category::TransformBox:
-		case Category::Block:
-		case Category::Brick:
-		case Category::Goomba:
-		case Category::Mushroom:
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (manifold.x != 0)
-			{
-				auto vel = getVelocity();
-				vel.x = -vel.x;
-				setVelocity(vel);
-			}
-			break;
-		case Category::Projectile:
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			die();
-			break;
-		case Category::SmallPlayer:
-		case Category::BigPlayer:
-			if (other->isDying()) break;
-			move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
-			if (other->getAbilities() & Player::Invincible)
-			{
-				die();
-			}
-			else
-			{
-				if (manifold.y != 0)
-				{
-					mSprite.setTextureRect(crushed);
-					mIsDying = true;
-					mIsCrushed = true;
-					mBehavors = Dying;
-
-					// it works here, at last player pouce if collide with goomba from top
-					// NOTE: for some unknown reasons, it doesn't work if i implemented this on player side
-					auto vel = other->getVelocity();
-					vel.y = -vel.y;//-380.f;
-					other->setVelocity(vel);
-				}
-			}
-			break;
-		default: break;
-		}
-		break;
-	case Behavors::Dying:
-		break;
-	default: break;
 	}
+}
+
+void Enemy::airGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	const static auto crushed = Table[mType].crushedRect;
+
+	if (other->isDying()) return;
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	if (other->getAbilities() & Player::Invincible)
+	{
+		move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+		die();
+	}
+	else
+	{
+		if (manifold.y != 0)
+		{
+			mSprite.setTextureRect(crushed);
+			mIsDying = true;
+			mIsCrushed = true;
+			mBehavors = Dying;
+		}
+	}
+}
+
+void Enemy::groundGoombaPlayerCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	const static auto crushed = Table[mType].crushedRect;
+
+	if (other->isDying()) return;
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	if (other->getAbilities() & Player::Invincible)
+	{
+		die();
+	}
+	else
+	{
+		if (manifold.y != 0)
+		{
+			mSprite.setTextureRect(crushed);
+			mIsDying = true;
+			mIsCrushed = true;
+			mBehavors = Dying;
+
+			// it works here, at last player pouce if collide with goomba from top
+			// NOTE: for some unknown reasons, it doesn't work if i implemented this on player side
+			auto vel = other->getVelocity();
+			vel.y = -vel.y;//-380.f;
+			other->setVelocity(vel);
+		}
+	}
+}
+
+void Enemy::airGoombaObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	//if (Enemy::Goomba & other->getCategory()) return;
+
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	mBehavors = Ground;
+}
+
+void Enemy::groundGoombaObjectsCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	//move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	if (manifold.x != 0)
+	{
+		auto vel = getVelocity();
+		vel.x = -vel.x;
+		setVelocity(vel);
+	}
+}
+
+void Enemy::projectileCollision(const sf::Vector3f& manifold, SceneNode* other)
+{
+	move(sf::Vector2f(manifold.x, manifold.y) * manifold.z);
+	die();
 }
 
 void Enemy::updateAnimation(sf::Time dt)

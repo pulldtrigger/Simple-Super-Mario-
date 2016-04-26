@@ -36,9 +36,11 @@ namespace Category
 
 
 		Goomba = 1 << 19,
+		Troopa = 1 << 20,
+		Shell = 1 << 21,
+		Plant = 1 << 22,
 
-
-		OutOfWorld = SmallPlayer | Projectile | Goomba | BigPlayer | Mushroom | Star,
-		All = Block | Brick | SoloCoinBox  | CoinsBox | TransformBox | FireBox | ShiftBox | SolidBox | Flower | Projectile | StaticCoin | OutOfWorld,
+		OutOfWorld = SmallPlayer | BigPlayer | Projectile | Goomba | Troopa | Shell | Mushroom | Star,
+		All = Block | Brick | SoloCoinBox  | CoinsBox | TransformBox | FireBox | ShiftBox | SolidBox | Flower | Plant | StaticCoin | OutOfWorld,
 	};
 }
